@@ -7,6 +7,7 @@ Monorepo of small WIP app prototypes, each deployed independently on Vercel.
 | Prototype | Folder | URL |
 | --------- | ------ | --- |
 | phoniks | [`phoniks/`](phoniks) | _(pending first deploy)_ |
+| trip-ohoy | [`trip-ohoy/`](trip-ohoy) | _(pending first deploy)_ |
 
 Each row gets filled in as a prototype is added — folder is `<name>` at the repo root, URL is its own `.vercel.app` deployment.
 

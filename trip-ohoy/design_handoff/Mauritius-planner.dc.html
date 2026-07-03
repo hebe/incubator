@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Schibsted Grotesk',system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;color:oklch(0.26 0.012 70);}
+  button{font-family:inherit;}
+  ::-webkit-scrollbar{height:10px;width:9px;}
+  ::-webkit-scrollbar-thumb{background:oklch(0.88 0.01 85);border-radius:10px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+</style>
+</helmet>
+<div style="min-height:100vh;background:oklch(0.97 0.008 85);">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 24px;border-bottom:1px solid oklch(0.9 0.01 85);background:oklch(0.995 0.004 90);position:sticky;top:0;z-index:20;">
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <div style="font-size:20px;font-weight:700;letter-spacing:0.05em;color:oklch(0.34 0.06 220);">MAURITIUS</div>
+      <div style="font-size:12.5px;color:oklch(0.52 0.012 70);">Familieferie · 31. juli – 9. august 2026</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;color:oklch(0.46 0.012 70);">
+        <span style="background:oklch(0.96 0.006 85);border:1px solid oklch(0.91 0.01 85);border-radius:20px;padding:4px 11px;">📋 {{ summary.planned }} aktiviteter</span>
+        <span style="background:oklch(0.96 0.006 85);border:1px solid oklch(0.91 0.01 85);border-radius:20px;padding:4px 11px;">🚗 {{ summary.carDays }} bildager</span>
+      </div>
+      <div style="display:flex;background:oklch(0.95 0.006 85);border-radius:10px;padding:3px;gap:2px;">
+        <button onClick="{{ showBoard }}" style="{{ boardTabStyle }}">Oversikt</button>
+        <button onClick="{{ showList }}" style="{{ listTabStyle }}">Dagsliste</button>
+      </div>
+    </div>
+  </div>
+
+  <sc-if value="{{ isBoard }}" hint-placeholder-val="{{ true }}">
+  <div>
+    <div style="padding:16px 24px 4px;font-size:12.5px;color:oklch(0.52 0.012 70);">Velg en dag, og klikk et kort i banken for å legge det til — eller dra kortet rett inn i en dagskolonne.</div>
+    <div style="display:flex;gap:12px;overflow-x:auto;padding:12px 24px 22px;align-items:flex-start;">
+      <sc-for list="{{ days }}" as="day" hint-placeholder-count="10">
+        <div data-screen-label="{{ day.screenLabel }}" style="{{ day.colStyle }}" onDragOver="{{ day.onDragOver }}" onDrop="{{ day.onDrop }}" onDragLeave="{{ day.onDragLeave }}">
+          <div onClick="{{ day.onSelect }}" style="display:flex;flex-direction:column;gap:7px;padding:11px 12px;cursor:pointer;border-bottom:1px solid oklch(0.93 0.008 85);">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;">
+              <span style="font-size:11px;font-weight:600;color:oklch(0.52 0.012 70);text-transform:uppercase;letter-spacing:0.06em;">{{ day.wds }}</span>
+              <span style="font-size:13px;font-weight:700;color:oklch(0.28 0.012 70);">{{ day.date }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <button onClick="{{ day.onToggleBase }}" style="{{ day.baseStyle }}">📍 {{ day.baseShort }}</button>
+              <sc-if value="{{ day.needsCar }}" hint-placeholder-val="{{ false }}"><span title="Trenger bil" style="font-size:13px;">🚗</span></sc-if>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:7px;padding:10px;flex:1;min-height:96px;">
+            <sc-for list="{{ day.items }}" as="it" hint-placeholder-count="0">
+              <div style="{{ it.cardStyle }}" onClick="{{ it.onOpen }}" title="Vis detaljer" style-hover="border-color:oklch(0.78 0.03 220)">
+                <div style="display:flex;align-items:flex-start;gap:7px;">
+                  <span style="font-size:15px;line-height:1.1;">{{ it.emoji }}</span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:12.5px;font-weight:600;color:oklch(0.26 0.012 70);line-height:1.25;">{{ it.name }}</div>
+                    <div style="font-size:11px;color:oklch(0.55 0.012 70);margin-top:2px;display:flex;align-items:center;gap:5px;"><span style="{{ it.energyDot }}"></span>{{ it.meta }}</div>
+                  </div>
+                  <span style="font-size:12px;color:oklch(0.72 0.01 80);line-height:1;align-self:center;">›</span>
+                  <button onClick="{{ it.onRemove }}" title="Fjern" style="border:none;background:none;color:oklch(0.68 0.01 80);cursor:pointer;font-size:16px;line-height:1;padding:0 1px;">×</button>
+                </div>
+                <sc-if value="{{ it.hasBadges }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;padding-left:22px;">
+                    <sc-for list="{{ it.badges }}" as="bdg" hint-placeholder-count="0"><span style="{{ bdg.style }}">{{ bdg.label }}</span></sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+            <sc-if value="{{ day.empty }}" hint-placeholder-val="{{ true }}">
+              <div style="font-size:11.5px;color:oklch(0.72 0.01 80);text-align:center;padding:16px 6px;border:1px dashed oklch(0.88 0.01 85);border-radius:8px;">Tom dag</div>
+            </sc-if>
+          </div>
+          <div style="padding:0 10px 11px;display:flex;flex-direction:column;gap:8px;">
+            <sc-if value="{{ day.mood }}" hint-placeholder-val="{{ false }}"><div style="{{ day.moodStyle }}">{{ day.mood }}</div></sc-if>
+            <button onClick="{{ day.onAddClick }}" style="font-size:12px;font-weight:600;color:oklch(0.42 0.04 220);background:oklch(0.96 0.014 220);border:1px solid oklch(0.9 0.02 220);border-radius:8px;padding:7px;cursor:pointer;">+ Legg til</button>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="border-top:1px solid oklch(0.9 0.01 85);background:oklch(0.985 0.005 85);padding:18px 24px 30px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:13px;">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:oklch(0.28 0.012 70);">Aktivitetsbank</div>
+          <div style="font-size:12px;color:oklch(0.52 0.012 70);margin-top:2px;">Legger til i <strong style="color:oklch(0.34 0.05 220);">{{ selectedDateLabel }}</strong> · klikk et kort, eller dra det opp i en dag</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;font-size:11px;color:oklch(0.5 0.012 70);flex-wrap:wrap;max-width:420px;">
+          <span>☀️ krever godt vær</span><span>🌧️ bra på regndag</span><span>🚗 trenger bil</span><span>↻ kan gjenbrukes</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:15px;">
+        <sc-for list="{{ categories }}" as="c" hint-placeholder-count="7">
+          <button onClick="{{ c.onClick }}" style="{{ c.style }}"><sc-if value="{{ c.hasDot }}" hint-placeholder-val="{{ false }}"><span style="{{ c.dot }}"></span></sc-if>{{ c.label }}</button>
+        </sc-for>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:10px;">
+        <sc-for list="{{ bankItems }}" as="b" hint-placeholder-count="11">
+          <div draggable="{{ b.draggable }}" onDragStart="{{ b.onDragStart }}" onClick="{{ b.onAdd }}" style="{{ b.style }}" style-hover="transform:translateY(-1px);box-shadow:0 5px 16px rgba(0,0,0,0.08)">
+            <div style="display:flex;align-items:flex-start;gap:10px;">
+              <span style="font-size:20px;line-height:1;">{{ b.emoji }}</span>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="font-size:13.5px;font-weight:600;color:oklch(0.25 0.012 70);">{{ b.name }}</span>
+                  <sc-if value="{{ b.reusable }}" hint-placeholder-val="{{ false }}"><span title="Kan gjenbrukes" style="font-size:12px;color:oklch(0.55 0.05 150);">↻</span></sc-if>
+                </div>
+                <div style="font-size:11px;color:oklch(0.52 0.012 70);margin-top:3px;display:flex;align-items:center;gap:5px;"><span style="{{ b.energyDot }}"></span>{{ b.catLabel }} · {{ b.meta }}</div>
+                <sc-if value="{{ b.hasBadges }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">
+                    <sc-for list="{{ b.badges }}" as="bdg" hint-placeholder-count="0"><span style="{{ bdg.style }}">{{ bdg.label }}</span></sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+            <sc-if value="{{ b.used }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:9px;right:9px;font-size:10px;font-weight:700;color:oklch(0.5 0.06 150);background:oklch(0.94 0.04 150);padding:2px 8px;border-radius:20px;">✓ Planlagt</div></sc-if>
+            <sc-if value="{{ b.notUsed }}" hint-placeholder-val="{{ true }}"><button onClick="{{ b.onOpenDetail }}" title="Vis detaljer" style="position:absolute;top:8px;right:8px;width:23px;height:23px;border-radius:50%;border:1px solid oklch(0.9 0.01 85);background:oklch(0.985 0.004 90);color:oklch(0.46 0.05 230);font-size:13px;font-weight:700;font-style:italic;font-family:Georgia,serif;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" style-hover="background:oklch(0.95 0.014 230)">i</button></sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isList }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:560px;margin:0 auto;padding:6px 16px 48px;">
+    <sc-for list="{{ days }}" as="day" hint-placeholder-count="10">
+      <div data-screen-label="{{ day.screenLabel }}" style="margin-top:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:9px;border-bottom:2px solid oklch(0.91 0.01 85);">
+          <div style="display:flex;align-items:baseline;gap:9px;">
+            <span style="font-size:18px;font-weight:700;color:oklch(0.26 0.012 70);">{{ day.date }}</span>
+            <span style="font-size:13px;font-weight:500;color:oklch(0.55 0.012 70);">{{ day.wdFull }}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <sc-if value="{{ day.mood }}" hint-placeholder-val="{{ false }}"><span style="{{ day.moodStyle }}">{{ day.mood }}</span></sc-if>
+            <button onClick="{{ day.onToggleBase }}" style="{{ day.baseStyle }}">📍 {{ day.baseShort }}</button>
+            <sc-if value="{{ day.needsCar }}" hint-placeholder-val="{{ false }}"><span title="Trenger bil" style="font-size:14px;">🚗</span></sc-if>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:11px;">
+          <sc-for list="{{ day.items }}" as="it" hint-placeholder-count="0">
+            <div style="{{ it.listStyle }}" onClick="{{ it.onOpen }}" title="Vis detaljer">
+              <span style="font-size:22px;line-height:1;">{{ it.emoji }}</span>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:14.5px;font-weight:600;color:oklch(0.25 0.012 70);">{{ it.name }}</span><span style="font-size:13px;color:oklch(0.72 0.01 80);">›</span></div>
+                <div style="font-size:12px;color:oklch(0.55 0.012 70);margin-top:2px;display:flex;align-items:center;gap:5px;"><span style="{{ it.energyDot }}"></span>{{ it.meta }}</div>
+                <sc-if value="{{ it.hasBadges }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">
+                    <sc-for list="{{ it.badges }}" as="bdg" hint-placeholder-count="0"><span style="{{ bdg.style }}">{{ bdg.label }}</span></sc-for>
+                  </div>
+                </sc-if>
+              </div>
+              <button onClick="{{ it.onRemove }}" title="Fjern" style="border:none;background:none;color:oklch(0.7 0.01 80);cursor:pointer;font-size:18px;line-height:1;padding:0 2px;align-self:flex-start;">×</button>
+            </div>
+          </sc-for>
+          <sc-if value="{{ day.empty }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:13px;color:oklch(0.7 0.01 80);padding:14px 4px;">Ingen aktiviteter planlagt enda.</div>
+          </sc-if>
+        </div>
+        <button onClick="{{ day.onAddClick }}" style="margin-top:10px;width:100%;font-size:13.5px;font-weight:600;color:oklch(0.42 0.04 220);background:oklch(0.96 0.014 220);border:1px solid oklch(0.9 0.02 220);border-radius:10px;padding:11px;cursor:pointer;">+ Legg til aktivitet</button>
+      </div>
+    </sc-for>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ pickerOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closePicker }}" style="position:fixed;inset:0;background:rgba(35,32,28,0.4);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;">
+    <div onClick="{{ stop }}" style="background:oklch(0.995 0.004 90);width:100%;max-width:520px;max-height:82vh;border-radius:18px;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.28);overflow:hidden;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 18px;border-bottom:1px solid oklch(0.92 0.01 85);">
+        <div>
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:oklch(0.55 0.012 70);">Legg til aktivitet</div>
+          <div style="font-size:16px;font-weight:700;color:oklch(0.27 0.012 70);margin-top:1px;">{{ pickerTitle }}</div>
+        </div>
+        <button onClick="{{ closePicker }}" style="font-size:13px;font-weight:600;color:oklch(0.34 0.05 220);background:oklch(0.95 0.014 220);border:none;border-radius:8px;padding:8px 14px;cursor:pointer;">Ferdig</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid oklch(0.94 0.008 85);">
+        <sc-for list="{{ categories }}" as="c" hint-placeholder-count="7">
+          <button onClick="{{ c.onClick }}" style="{{ c.style }}"><sc-if value="{{ c.hasDot }}" hint-placeholder-val="{{ false }}"><span style="{{ c.dot }}"></span></sc-if>{{ c.label }}</button>
+        </sc-for>
+      </div>
+      <div style="overflow-y:auto;padding:12px 18px 18px;display:flex;flex-direction:column;gap:8px;">
+        <sc-for list="{{ pickerItems }}" as="p" hint-placeholder-count="6">
+          <button onClick="{{ p.onAdd }}" style="{{ p.rowStyle }}">
+            <span style="font-size:21px;line-height:1;">{{ p.emoji }}</span>
+            <div style="flex:1;min-width:0;text-align:left;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:14px;font-weight:600;color:oklch(0.25 0.012 70);">{{ p.name }}</span>
+                <sc-if value="{{ p.reusable }}" hint-placeholder-val="{{ false }}"><span title="Kan gjenbrukes" style="font-size:12px;color:oklch(0.55 0.05 150);">↻</span></sc-if>
+              </div>
+              <div style="font-size:11.5px;color:oklch(0.52 0.012 70);margin-top:2px;display:flex;align-items:center;gap:5px;"><span style="{{ p.energyDot }}"></span>{{ p.catLabel }} · {{ p.meta }}</div>
+              <sc-if value="{{ p.hasBadges }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:7px;">
+                  <sc-for list="{{ p.badges }}" as="bdg" hint-placeholder-count="0"><span style="{{ bdg.style }}">{{ bdg.label }}</span></sc-for>
+                </div>
+              </sc-if>
+            </div>
+            <span style="{{ p.addMark }}">{{ p.addLabel }}</span>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ detailOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeDetail }}" style="position:fixed;inset:0;background:rgba(35,32,28,0.42);display:flex;align-items:center;justify-content:center;z-index:60;padding:16px;">
+    <div onClick="{{ stop }}" style="background:oklch(0.995 0.004 90);width:100%;max-width:540px;max-height:88vh;border-radius:18px;display:flex;flex-direction:column;box-shadow:0 22px 64px rgba(0,0,0,0.3);overflow:hidden;">
+      <div style="display:flex;align-items:flex-start;gap:13px;padding:18px 18px 14px;border-bottom:1px solid oklch(0.93 0.008 85);">
+        <span style="font-size:30px;line-height:1;">{{ detail.emoji }}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:18px;font-weight:700;color:oklch(0.25 0.012 70);line-height:1.2;">{{ detail.name }}</div>
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:7px;">
+            <span style="{{ detail.catChip }}"><span style="{{ detail.catDot }}"></span>{{ detail.catLabel }}</span>
+            <span style="font-size:12px;color:oklch(0.52 0.012 70);">{{ detail.meta }}</span>
+            <sc-if value="{{ detail.reusable }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:600;color:oklch(0.5 0.06 150);">↻ Kan gjenbrukes</span></sc-if>
+          </div>
+          <sc-if value="{{ detail.hasBadges }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;">
+              <sc-for list="{{ detail.badges }}" as="bdg" hint-placeholder-count="0"><span style="{{ bdg.style }}">{{ bdg.label }}</span></sc-for>
+            </div>
+          </sc-if>
+        </div>
+        <button onClick="{{ closeDetail }}" style="border:none;background:oklch(0.95 0.006 85);color:oklch(0.4 0.012 70);width:30px;height:30px;border-radius:9px;cursor:pointer;font-size:18px;line-height:1;flex:0 0 auto;">×</button>
+      </div>
+
+      <div style="overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:20px;">
+
+        <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+          <div style="position:relative;width:168px;height:218px;flex:0 0 auto;background:linear-gradient(180deg, oklch(0.93 0.045 230), oklch(0.9 0.05 225));border-radius:14px;border:1px solid oklch(0.86 0.04 230);overflow:hidden;">
+            <svg viewBox="0 0 100 130" style="position:absolute;inset:0;width:100%;height:100%;">
+              <path d="{{ detail.mapPath }}" fill="oklch(0.9 0.055 145)" stroke="oklch(0.66 0.08 150)" stroke-width="1.4" stroke-linejoin="round"></path>
+            </svg>
+            <div style="{{ detail.pinWrap }}">
+              <div style="{{ detail.pinHalo }}"></div>
+              <div style="{{ detail.pinDot }}"></div>
+            </div>
+          </div>
+          <div style="flex:1;min-width:160px;display:flex;flex-direction:column;gap:8px;padding-top:2px;">
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:oklch(0.55 0.012 70);">Hvor på Mauritius</div>
+            <div style="font-size:16px;font-weight:700;color:oklch(0.28 0.012 70);">📍 {{ detail.loc }}</div>
+            <a href="{{ detail.mapsLink }}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:oklch(0.4 0.05 230);text-decoration:none;background:oklch(0.96 0.014 230);border:1px solid oklch(0.9 0.02 230);border-radius:9px;padding:9px 12px;align-self:flex-start;margin-top:2px;">🗺️ Åpne i Google Maps ↗</a>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:oklch(0.55 0.012 70);">Lenker & info</div>
+          <sc-if value="{{ detail.hasUserLinks }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <sc-for list="{{ detail.userLinks }}" as="lnk" hint-placeholder-count="0">
+                <div style="display:flex;align-items:center;gap:10px;background:oklch(0.985 0.004 90);border:1px solid oklch(0.91 0.01 85);border-radius:10px;padding:9px 11px;">
+                  <a href="{{ lnk.url }}" target="_blank" rel="noopener" style="flex:1;min-width:0;text-decoration:none;">
+                    <div style="font-size:13.5px;font-weight:600;color:oklch(0.34 0.05 230);">{{ lnk.label }} ↗</div>
+                    <div style="font-size:11px;color:oklch(0.58 0.012 70);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ lnk.host }}</div>
+                  </a>
+                  <button onClick="{{ lnk.onRemove }}" title="Fjern lenke" style="border:none;background:none;color:oklch(0.68 0.01 80);cursor:pointer;font-size:17px;line-height:1;padding:0 2px;">×</button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;">
+            <input value="{{ detail.draftLabel }}" onChange="{{ detail.onDraftLabel }}" onKeyDown="{{ detail.onLinkKey }}" placeholder="Tittel (valgfritt)" style="flex:1;min-width:120px;font-family:inherit;font-size:13px;color:oklch(0.26 0.012 70);background:oklch(0.99 0.004 90);border:1px solid oklch(0.89 0.01 85);border-radius:9px;padding:9px 11px;outline:none;"></input>
+            <input value="{{ detail.draftUrl }}" onChange="{{ detail.onDraftUrl }}" onKeyDown="{{ detail.onLinkKey }}" placeholder="Lim inn URL…" style="flex:2;min-width:160px;font-family:inherit;font-size:13px;color:oklch(0.26 0.012 70);background:oklch(0.99 0.004 90);border:1px solid oklch(0.89 0.01 85);border-radius:9px;padding:9px 11px;outline:none;"></input>
+            <button onClick="{{ detail.onAddLink }}" style="font-size:13px;font-weight:600;color:#fff;background:oklch(0.42 0.06 230);border:none;border-radius:9px;padding:9px 15px;cursor:pointer;flex:0 0 auto;">Legg til</button>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:oklch(0.55 0.012 70);">Notater</div>
+          <textarea value="{{ detail.notesValue }}" onChange="{{ detail.onNotes }}" placeholder="Bookingdetaljer, hva å huske, hvem som ble anbefalt det, tider, priser…" style="width:100%;min-height:96px;resize:vertical;font-family:inherit;font-size:13.5px;line-height:1.5;color:oklch(0.26 0.012 70);background:oklch(0.99 0.004 90);border:1px solid oklch(0.89 0.01 85);border-radius:11px;padding:11px 12px;outline:none;box-sizing:border-box;"></textarea>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:820},&quot;startView&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;board&quot;,&quot;list&quot;],&quot;default&quot;:&quot;board&quot;,&quot;tsType&quot;:&quot;'board' | 'list'&quot;},&quot;showWeatherBadges&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;seedPlan&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  CATS = {
+    vann: { label: 'Vann', color: 'oklch(0.58 0.11 230)' },
+    natur: { label: 'Natur & eventyr', color: 'oklch(0.56 0.11 150)' },
+    sev: { label: 'Severdighet', color: 'oklch(0.55 0.11 300)' },
+    hvile: { label: 'Hvile', color: 'oklch(0.66 0.08 70)' },
+    mat: { label: 'Mat', color: 'oklch(0.62 0.13 45)' },
+    shop: { label: 'Shopping', color: 'oklch(0.58 0.06 255)' },
+  };
+  CATALOG = [
+    { id:'delfin', emoji:'🐬', name:'Delfin- & hvalsafari', cat:'vann', dur:'Hel dag', energy:'Høy', weather:'good', car:true, reusable:false, loc:'Tamarin Bay (vest)', mx:15, my:78 },
+    { id:'snorkel', emoji:'⛵', name:'Snorkling – Gabriel Island', cat:'vann', dur:'Hel dag', energy:'Middels', weather:'good', car:true, reusable:false, loc:'Gabriel Island (nord)', mx:68, my:7 },
+    { id:'casela', emoji:'🦁', name:'Casela Nature Parks', cat:'natur', dur:'Hel dag', energy:'Høy', weather:'any', car:true, reusable:false, loc:'Cascavelle (vest)', mx:16, my:86 },
+    { id:'chamarel', emoji:'🏔️', name:'Chamarel – farget jord', cat:'sev', dur:'Halvdag', energy:'Middels', weather:'any', car:true, reusable:false, loc:'Chamarel (sørvest)', mx:22, my:99 },
+    { id:'pamplemousses', emoji:'🌺', name:'Pamplemousses botaniske hage', cat:'sev', dur:'Halvdag', energy:'Lav', weather:'any', car:true, reusable:false, loc:'Pamplemousses (nord)', mx:54, my:30 },
+    { id:'odysseo', emoji:'🐙', name:'Odysseo akvarium', cat:'sev', dur:'2 timer', energy:'Lav', weather:'rainy', car:true, reusable:false, loc:'Port Louis (Caudan)', mx:42, my:40 },
+    { id:'strand', emoji:'🌊', name:'Stranddag', cat:'hvile', dur:'Hel dag', energy:'Lav', weather:'good', car:false, reusable:true, loc:'Grand Baie (nord)', mx:58, my:13 },
+    { id:'basseng', emoji:'🛋️', name:'Hvile- & bassengdag', cat:'hvile', dur:'Hel dag', energy:'Lav', weather:'any', car:false, reusable:true, loc:'På basen', mx:57, my:16 },
+    { id:'restaurant', emoji:'🍽️', name:'Restaurantmiddag ute', cat:'mat', dur:'2 timer', energy:'Lav', weather:'any', car:false, reusable:true, loc:'Grand Baie sentrum', mx:59, my:15 },
+    { id:'hjemmemat', emoji:'🍳', name:'Hjemmemiddag', cat:'mat', dur:'2 timer', energy:'Lav', weather:'any', car:false, reusable:true, loc:'Hjemme', mx:57, my:16 },
+    { id:'handle', emoji:'🛒', name:'Handletur (Super U)', cat:'shop', dur:'1 time', energy:'Lav', weather:'any', car:true, reusable:true, loc:'Super U, Grand Baie', mx:55, my:18 },
+  ];
+  MAP_PATH = 'M50,5 C62,4 72,10 78,22 C84,34 84,46 82,58 C80,72 72,86 62,100 C56,108 50,118 45,121 C40,118 33,110 27,100 C19,88 13,74 12,60 C11,48 14,34 22,22 C30,11 40,6 50,5 Z';
+  WDF = ['Fredag','Lørdag','Søndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag','Søndag'];
+  WDS = ['Fre','Lør','Søn','Man','Tir','Ons','Tor','Fre','Lør','Søn'];
+  DATES = ['31. juli','1. aug','2. aug','3. aug','4. aug','5. aug','6. aug','7. aug','8. aug','9. aug'];
+  DATESL = ['31. juli','1. august','2. august','3. august','4. august','5. august','6. august','7. august','8. august','9. august'];
+  BASES = {
+    nord: { short:'Grand Baie', color:'oklch(0.42 0.08 220)', bg:'oklch(0.93 0.03 220)' },
+    sorvest: { short:'Sørvest', color:'oklch(0.46 0.11 45)', bg:'oklch(0.94 0.045 45)' },
+  };
+  KEY = 'mauritius-planner-v2';
+  _uid = 0;
+
+  constructor(props) {
+    super(props);
+    this.state = {
+      view: (props && props.startView) || 'board',
+      filter: 'alle',
+      selectedDay: 0,
+      dragOver: null,
+      pickerDay: null,
+      detailId: null,
+      linkDraft: { label:'', url:'' },
+      meta: {},
+      days: this.makeDays(),
+    };
+  }
+
+  componentDidMount() {
+    try {
+      const raw = localStorage.getItem(this.KEY);
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d && Array.isArray(d.days) && d.days.length === 10) {
+          let max = 0;
+          d.days.forEach(dd => dd.items.forEach(it => { const n = parseInt(String(it.uid).replace(/\D/g,''),10); if (n>max) max=n; }));
+          this._uid = max;
+          this.setState({ days: d.days, meta: (d.meta && typeof d.meta === 'object') ? d.meta : {} });
+        } else if (d && d.meta) {
+          this.setState({ meta: d.meta });
+        }
+      }
+    } catch (e) {}
+  }
+
+  nextUid() { this._uid++; return 'u' + this._uid; }
+
+  makeDays() {
+    const seed = !(this.props && this.props.seedPlan === false);
+    const bases = ['nord','nord','nord','nord','nord','nord','nord','sorvest','sorvest','sorvest'];
+    const seedItems = seed ? { 0:['handle','hjemmemat'], 1:['strand','restaurant'], 2:['delfin'], 3:['basseng'] } : {};
+    return bases.map((b,i) => ({ base:b, items:(seedItems[i]||[]).map(id => ({ uid:this.nextUid(), id })) }));
+  }
+
+  save = () => { try { localStorage.setItem(this.KEY, JSON.stringify({ days:this.state.days, meta:this.state.meta })); } catch(e){} };
+
+  getMeta(id) { const m = this.state.meta[id] || {}; return { notes: m.notes || '', links: Array.isArray(m.links) ? m.links : [] }; }
+  hostOf(u) { try { return new URL(u).hostname.replace(/^www\./,''); } catch(e) { return u; } }
+  patchMeta(id, patch) {
+    this.setState(s => { const cur = s.meta[id] || { notes:'', links:[] }; return { meta: { ...s.meta, [id]: { notes:cur.notes||'', links:cur.links||[], ...patch } } }; }, this.save);
+  }
+  openDetail(id) { this.setState({ detailId: id }); }
+  closeDetail = () => this.setState({ detailId: null, linkDraft: { label:'', url:'' } });
+  setNotes(id, val) { this.patchMeta(id, { notes: val }); }
+  addLink(id) {
+    const d = this.state.linkDraft || {}; const raw = (d.url||'').trim(); if (!raw) return;
+    const url = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
+    const label = (d.label||'').trim() || this.hostOf(url);
+    const cur = this.getMeta(id);
+    this.patchMeta(id, { links: [...cur.links, { label, url }] });
+    this.setState({ linkDraft: { label:'', url:'' } });
+  }
+  removeLink(id, idx) { const cur = this.getMeta(id); this.patchMeta(id, { links: cur.links.filter((_,i) => i !== idx) }); }
+
+  usedIds() {
+    const set = new Set();
+    this.state.days.forEach(d => d.items.forEach(it => {
+      const a = this.CATALOG.find(x => x.id === it.id);
+      if (a && !a.reusable) set.add(it.id);
+    }));
+    return set;
+  }
+
+  addActivity(dayIndex, id) {
+    const act = this.CATALOG.find(a => a.id === id);
+    if (!act) return;
+    if (!act.reusable && this.usedIds().has(id)) return;
+    this.setState(s => ({
+      days: s.days.map((d,i) => i === dayIndex ? { ...d, items:[...d.items, { uid:this.nextUid(), id }] } : d)
+    }), this.save);
+  }
+
+  removeActivity(dayIndex, uid) {
+    this.setState(s => ({
+      days: s.days.map((d,i) => i === dayIndex ? { ...d, items:d.items.filter(it => it.uid !== uid) } : d)
+    }), this.save);
+  }
+
+  toggleBase(i) {
+    this.setState(s => ({
+      days: s.days.map((d,j) => j === i ? { ...d, base:d.base === 'nord' ? 'sorvest' : 'nord' } : d)
+    }), this.save);
+  }
+
+  badgeStyle(kind) {
+    const m = {
+      car: ['oklch(0.95 0.025 250)','oklch(0.42 0.07 250)'],
+      sun: ['oklch(0.96 0.05 90)','oklch(0.5 0.11 70)'],
+      rain: ['oklch(0.95 0.02 235)','oklch(0.46 0.05 240)'],
+    }[kind];
+    return { fontSize:'10.5px', fontWeight:600, padding:'2px 8px', borderRadius:'20px', background:m[0], color:m[1], whiteSpace:'nowrap' };
+  }
+
+  energyDot(energy) {
+    const c = { 'Høy':'oklch(0.62 0.16 30)', 'Middels':'oklch(0.74 0.13 75)', 'Lav':'oklch(0.64 0.1 150)' }[energy] || 'oklch(0.7 0 0)';
+    return { display:'inline-block', width:'7px', height:'7px', borderRadius:'50%', background:c, flex:'0 0 auto' };
+  }
+
+  enrich(act) {
+    const cat = this.CATS[act.cat];
+    const showW = this.props.showWeatherBadges !== false;
+    const badges = [];
+    if (act.car) badges.push({ label:'🚗 Bil', style:this.badgeStyle('car') });
+    if (showW && act.weather === 'good') badges.push({ label:'☀️ Godt vær', style:this.badgeStyle('sun') });
+    if (showW && act.weather === 'rainy') badges.push({ label:'🌧️ Regndag', style:this.badgeStyle('rain') });
+    return {
+      id:act.id, emoji:act.emoji, name:act.name, energy:act.energy,
+      meta:act.dur + ' · ' + act.energy, catLabel:cat.label, catColor:cat.color,
+      reusable:!!act.reusable, badges, hasBadges:badges.length>0, energyDot:this.energyDot(act.energy),
+    };
+  }
+
+  moodStyleFor(mood) {
+    const base = { fontSize:'10.5px', fontWeight:600, padding:'4px 9px', borderRadius:'20px', alignSelf:'flex-start', whiteSpace:'nowrap' };
+    const m = {
+      'Aktiv dag': ['oklch(0.95 0.045 35)','oklch(0.5 0.13 35)'],
+      'Balansert dag': ['oklch(0.95 0.03 230)','oklch(0.46 0.09 230)'],
+      'Rolig dag': ['oklch(0.95 0.035 150)','oklch(0.45 0.09 150)'],
+    }[mood];
+    return { ...base, background:m[0], color:m[1] };
+  }
+
+  renderVals() {
+    const st = this.state;
+    const tabBase = { fontSize:'13px', fontWeight:600, padding:'7px 16px', borderRadius:'8px', border:'none', cursor:'pointer', background:'transparent', color:'oklch(0.46 0.012 70)' };
+    const tabActive = { ...tabBase, background:'oklch(0.995 0.004 90)', color:'oklch(0.3 0.05 220)', boxShadow:'0 1px 3px rgba(0,0,0,0.12)' };
+
+    // categories
+    const chipBase = { display:'inline-flex', alignItems:'center', gap:'6px', fontSize:'12px', fontWeight:600, padding:'6px 13px', borderRadius:'20px', cursor:'pointer' };
+    const cats = [{ key:'alle', label:'Alle' }].concat(Object.keys(this.CATS).map(k => ({ key:k, label:this.CATS[k].label, color:this.CATS[k].color })));
+    const categories = cats.map(c => {
+      const active = st.filter === c.key;
+      const style = active
+        ? { ...chipBase, background:'oklch(0.32 0.05 220)', color:'#fff', border:'1px solid transparent' }
+        : { ...chipBase, background:'oklch(0.975 0.006 85)', color:'oklch(0.4 0.012 70)', border:'1px solid oklch(0.9 0.01 85)' };
+      return {
+        label:c.label, style,
+        hasDot: !!c.color,
+        dot: c.color ? { display:'inline-block', width:'8px', height:'8px', borderRadius:'50%', background:c.color } : {},
+        onClick: () => this.setState({ filter:c.key }),
+      };
+    });
+
+    const used = this.usedIds();
+
+    // days
+    const days = st.days.map((d, i) => {
+      const items = d.items.map(it => {
+        const a = this.CATALOG.find(x => x.id === it.id);
+        const e = this.enrich(a);
+        return {
+          ...e, uid:it.uid,
+          cardStyle: { background:'oklch(0.985 0.004 90)', border:'1px solid oklch(0.91 0.01 85)', borderLeft:'3px solid '+e.catColor, borderRadius:'8px', padding:'8px 9px', cursor:'pointer' },
+          listStyle: { display:'flex', alignItems:'flex-start', gap:'12px', background:'oklch(0.995 0.004 90)', border:'1px solid oklch(0.91 0.01 85)', borderLeft:'4px solid '+e.catColor, borderRadius:'12px', padding:'13px 14px', cursor:'pointer' },
+          onOpen: () => this.openDetail(it.id),
+          onRemove: (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); this.removeActivity(i, it.uid); },
+        };
+      });
+      const needsCar = d.items.some(it => { const a = this.CATALOG.find(x => x.id === it.id); return a && a.car; });
+      let mood = null;
+      if (items.length) {
+        if (items.some(x => x.energy === 'Høy')) mood = 'Aktiv dag';
+        else if (items.some(x => x.energy === 'Middels')) mood = 'Balansert dag';
+        else mood = 'Rolig dag';
+      }
+      const base = this.BASES[d.base];
+      let col = { width:'234px', flex:'0 0 234px', background:'oklch(0.995 0.004 90)', border:'1px solid oklch(0.9 0.01 85)', borderRadius:'12px', display:'flex', flexDirection:'column', boxShadow:'0 1px 2px rgba(0,0,0,0.03)', transition:'border-color .12s, box-shadow .12s', alignSelf:'stretch' };
+      if (st.selectedDay === i) { col.borderColor = 'oklch(0.5 0.09 220)'; col.boxShadow = '0 0 0 2px oklch(0.85 0.06 220)'; }
+      if (st.dragOver === i) { col.borderColor = 'oklch(0.55 0.1 150)'; col.borderStyle = 'dashed'; col.background = 'oklch(0.98 0.025 150)'; }
+      return {
+        screenLabel: 'Dag ' + (i+1) + ' – ' + this.WDS[i] + ' ' + this.DATES[i],
+        wds:this.WDS[i], wdFull:this.WDF[i], date:this.DATES[i],
+        baseShort:base.short,
+        baseStyle:{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'10.5px', fontWeight:600, padding:'3px 9px', borderRadius:'20px', border:'none', cursor:'pointer', background:base.bg, color:base.color },
+        onToggleBase:(ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); this.toggleBase(i); },
+        needsCar, mood, moodStyle: mood ? this.moodStyleFor(mood) : {},
+        items, empty:items.length === 0,
+        colStyle:col,
+        onSelect:() => this.setState({ selectedDay:i }),
+        onAddClick:(ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); this.setState({ pickerDay:i }); },
+        onDragOver:(ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'copy'; if (st.dragOver !== i) this.setState({ dragOver:i }); },
+        onDragLeave:(ev) => { if (st.dragOver === i) this.setState({ dragOver:null }); },
+        onDrop:(ev) => { ev.preventDefault(); const id = ev.dataTransfer.getData('text/plain'); this.setState({ dragOver:null }); if (id) this.addActivity(i, id); },
+      };
+    });
+
+    // bank
+    const filtered = this.CATALOG.filter(a => st.filter === 'alle' || a.cat === st.filter);
+    const bankItems = filtered.map(a => {
+      const e = this.enrich(a);
+      const isUsed = !a.reusable && used.has(a.id);
+      const cardBase = { position:'relative', background:'oklch(0.995 0.004 90)', border:'1px solid oklch(0.9 0.01 85)', borderLeft:'4px solid '+e.catColor, borderRadius:'10px', padding:'12px', cursor:'pointer', transition:'transform .12s, box-shadow .12s' };
+      return {
+        ...e,
+        used:isUsed,
+        notUsed:!isUsed,
+        draggable: !isUsed,
+        style: isUsed ? { ...cardBase, opacity:0.5, cursor:'default', filter:'saturate(0.4)' } : cardBase,
+        onAdd: isUsed ? (() => {}) : (() => this.addActivity(st.selectedDay, a.id)),
+        onOpenDetail: (ev) => { if (ev && ev.stopPropagation) ev.stopPropagation(); this.openDetail(a.id); },
+        onDragStart: isUsed ? (() => {}) : ((ev) => { ev.dataTransfer.setData('text/plain', a.id); ev.dataTransfer.effectAllowed = 'copy'; }),
+      };
+    });
+
+    // detail
+    const did = st.detailId;
+    const detailOpen = !!did;
+    let detail = null;
+    if (did) {
+      const a = this.CATALOG.find(x => x.id === did);
+      const e = this.enrich(a);
+      const m = this.getMeta(did);
+      const draft = st.linkDraft || { label:'', url:'' };
+      detail = {
+        emoji:a.emoji, name:a.name, catLabel:e.catLabel, catColor:e.catColor,
+        badges:e.badges, hasBadges:e.hasBadges, reusable:e.reusable, meta:e.meta, loc:a.loc,
+        mapPath:this.MAP_PATH,
+        catChip:{ display:'inline-flex', alignItems:'center', gap:'6px', fontSize:'11px', fontWeight:600, padding:'3px 10px', borderRadius:'20px', background:'oklch(0.96 0.006 85)', border:'1px solid oklch(0.91 0.01 85)', color:e.catColor },
+        catDot:{ display:'inline-block', width:'8px', height:'8px', borderRadius:'50%', background:e.catColor },
+        pinWrap:{ position:'absolute', left:a.mx+'%', top:(a.my/130*100)+'%', transform:'translate(-50%,-50%)' },
+        pinDot:{ width:'15px', height:'15px', borderRadius:'50%', background:e.catColor, border:'3px solid #fff', boxShadow:'0 1px 4px rgba(0,0,0,0.35)' },
+        pinHalo:{ position:'absolute', left:'50%', top:'50%', transform:'translate(-50%,-50%)', width:'30px', height:'30px', borderRadius:'50%', background:e.catColor, opacity:0.18 },
+        mapsLink:'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(a.loc + ' Mauritius'),
+        userLinks: m.links.map((l, idx) => ({ label:l.label, url:l.url, host:this.hostOf(l.url), onRemove:() => this.removeLink(did, idx) })),
+        hasUserLinks: m.links.length > 0,
+        notesValue: m.notes,
+        onNotes: (ev) => this.setNotes(did, ev.target.value),
+        draftLabel: draft.label || '', draftUrl: draft.url || '',
+        onDraftLabel: (ev) => { const v = ev.target.value; this.setState(s => ({ linkDraft:{ ...(s.linkDraft||{}), label:v } })); },
+        onDraftUrl: (ev) => { const v = ev.target.value; this.setState(s => ({ linkDraft:{ ...(s.linkDraft||{}), url:v } })); },
+        onAddLink: () => this.addLink(did),
+        onLinkKey: (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); this.addLink(did); } },
+      };
+    }
+
+    // picker
+    const pd = st.pickerDay;
+    const pickerOpen = pd !== null && pd !== undefined;
+    const pickerItems = pickerOpen ? filtered.map(a => {
+      const e = this.enrich(a);
+      const isUsed = !a.reusable && used.has(a.id);
+      const rowBase = { display:'flex', alignItems:'center', gap:'12px', width:'100%', background:'oklch(0.995 0.004 90)', border:'1px solid oklch(0.91 0.01 85)', borderLeft:'4px solid '+e.catColor, borderRadius:'12px', padding:'12px 13px', cursor:'pointer', textAlign:'left' };
+      return {
+        ...e,
+        used:isUsed,
+        rowStyle: isUsed ? { ...rowBase, opacity:0.5, cursor:'default', filter:'saturate(0.4)' } : rowBase,
+        addLabel: isUsed ? '✓ Planlagt' : '+',
+        addMark: isUsed
+          ? { fontSize:'10px', fontWeight:700, color:'oklch(0.5 0.06 150)', whiteSpace:'nowrap' }
+          : { fontSize:'22px', fontWeight:400, color:'oklch(0.42 0.04 220)', width:'30px', height:'30px', borderRadius:'8px', background:'oklch(0.95 0.014 220)', display:'flex', alignItems:'center', justifyContent:'center', flex:'0 0 auto' },
+        onAdd: isUsed ? (() => {}) : (() => this.addActivity(pd, a.id)),
+      };
+    }) : [];
+
+    const planned = st.days.reduce((n,d) => n + d.items.length, 0);
+    const carDays = days.filter(d => d.needsCar).length;
+
+    return {
+      isBoard: st.view === 'board',
+      isList: st.view === 'list',
+      showBoard: () => this.setState({ view:'board' }),
+      showList: () => this.setState({ view:'list' }),
+      boardTabStyle: st.view === 'board' ? tabActive : tabBase,
+      listTabStyle: st.view === 'list' ? tabActive : tabBase,
+      summary: { planned, carDays },
+      selectedDateLabel: this.WDF[st.selectedDay] + ' ' + this.DATESL[st.selectedDay],
+      categories,
+      bankItems,
+      days,
+      pickerOpen,
+      pickerTitle: pickerOpen ? (this.WDF[pd] + ' ' + this.DATESL[pd]) : '',
+      pickerItems,
+      closePicker: () => this.setState({ pickerDay:null }),
+      detailOpen,
+      detail,
+      closeDetail: this.closeDetail,
+      stop: (ev) => ev.stopPropagation(),
+    };
+  }
+}
+</script>
+</body>
+</html>
