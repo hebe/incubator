@@ -3,7 +3,17 @@
 // (view, filter, selectedDay, dragOver, pickerDay, detailId, linkDraft) + the trip graph.
 
 import type { Activity, ActivityMeta, Base, CategoryKey, Day, Link, Placement, Trip } from '$lib/types';
-import { db, loadTripGraph, uid, type TripGraph } from '$lib/data/local';
+import {
+	db,
+	loadTripGraph,
+	uid,
+	type TripGraph,
+	createActivity as dbCreateActivity,
+	updateActivity as dbUpdateActivity,
+	deleteActivity as dbDeleteActivity,
+	addBase as dbAddBase,
+	removeBase as dbRemoveBase
+} from '$lib/data/local';
 import { normalizeLink } from '$lib/data/derive';
 
 type Filter = CategoryKey | 'all';
@@ -25,6 +35,10 @@ export class PlannerStore {
 	detailActivityId = $state<string | null>(null);
 	linkDraft = $state<Link>({ label: '', url: '' });
 	loaded = $state(false);
+
+	// 'closed' | 'create' | activityId (edit)
+	activityFormMode = $state<'closed' | 'create' | string>('closed');
+	basesOpen = $state(false);
 
 	async load(tripId: string) {
 		const g = await loadTripGraph(tripId);
@@ -92,6 +106,11 @@ export class PlannerStore {
 		this.detailActivityId = null;
 		this.linkDraft = { label: '', url: '' };
 	};
+	openNewActivity = () => (this.activityFormMode = 'create');
+	openEditActivity = (id: string) => (this.activityFormMode = id);
+	closeActivityForm = () => (this.activityFormMode = 'closed');
+	openBasesManager = () => (this.basesOpen = true);
+	closeBasesManager = () => (this.basesOpen = false);
 
 	// ── Mutations (state + write-through) ───────────────────────────────────────
 	async addActivity(dayId: string, activityId: string) {
@@ -138,5 +157,47 @@ export class PlannerStore {
 	async removeLink(activityId: string, idx: number) {
 		const cur = this.metaFor(activityId);
 		await this.patchMeta(activityId, { links: cur.links.filter((_, i) => i !== idx) });
+	}
+
+	// ── Activity CRUD ───────────────────────────────────────────────────────────
+	async saveActivity(data: Omit<Activity, 'id' | 'tripId' | 'updatedAt'>, editId?: string) {
+		if (!this.trip) return;
+		if (editId) {
+			const updated = await dbUpdateActivity(editId, data);
+			if (updated) {
+				this.activities = this.activities.map((a) => (a.id === editId ? updated : a));
+			}
+		} else {
+			const a = await dbCreateActivity(this.trip.id, data);
+			this.activities = [...this.activities, a];
+		}
+		this.closeActivityForm();
+	}
+
+	async deleteActivity(id: string) {
+		await dbDeleteActivity(id);
+		this.activities = this.activities.filter((a) => a.id !== id);
+		this.placements = this.placements.filter((p) => p.activityId !== id);
+		const meta = { ...this.meta };
+		delete meta[id];
+		this.meta = meta;
+		if (this.detailActivityId === id) this.closeDetail();
+		this.closeActivityForm();
+	}
+
+	// ── Base CRUD ───────────────────────────────────────────────────────────────
+	async addNewBase(name: string, colorToken: string) {
+		if (!this.trip) return;
+		const base = await dbAddBase(this.trip.id, name, colorToken);
+		this.bases = [...this.bases, base];
+	}
+
+	async deleteBase(baseId: string) {
+		if (!this.trip) return;
+		const remaining = this.bases.filter((b) => b.id !== baseId);
+		const fallbackId = remaining[0]?.id ?? null;
+		await dbRemoveBase(this.trip.id, baseId);
+		this.days = this.days.map((d) => (d.baseId === baseId ? { ...d, baseId: fallbackId } : d));
+		this.bases = remaining;
 	}
 }

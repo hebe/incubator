@@ -3,6 +3,46 @@
 // For M1 there is a single `en` dictionary; `t` just returns it.
 
 export const en = {
+	// Navigation
+	back: '← Trips',
+	// Trip list
+	newTrip: '+ New trip',
+	tripsEmpty: 'No trips yet.',
+	days: (n: number) => `${n} day${n === 1 ? '' : 's'}`,
+	// TripForm
+	tripFormTitle: 'New trip',
+	destinationLabel: 'Destination',
+	destinationPlaceholder: 'e.g. Mauritius',
+	departureDateLabel: 'Departure',
+	returnDateLabel: 'Return',
+	basesLabel: 'Bases & accommodation',
+	addBase: '+ Add base',
+	basePlaceholder: 'e.g. Grand Baie',
+	createTrip: 'Create trip',
+	// ActivityForm
+	newActivityTitle: 'New activity',
+	editActivityTitle: 'Edit activity',
+	emojiLabel: 'Emoji',
+	activityNameLabel: 'Name',
+	activityNamePlaceholder: 'e.g. Snorkeling trip',
+	categoryLabel: 'Category',
+	durationLabel: 'Duration',
+	durationPlaceholder: 'e.g. Full day',
+	energyLabel: 'Energy',
+	weatherLabel: 'Weather',
+	needsCarLabel: 'Needs a car',
+	reusableLabel2: 'Reusable',
+	placeLabelField: 'Place name',
+	locationLabel: 'Location',
+	saveActivity: 'Save activity',
+	deleteActivity: 'Delete activity',
+	deleteActivityConfirm: 'Delete this activity? All placements will be removed.',
+	cancel: 'Cancel',
+	newActivityBtn: '+ New activity',
+	// Bases modal
+	manageBasesTitle: 'Manage bases',
+	removeBase: 'Remove',
+	// Planner
 	overview: 'Overview',
 	dayList: 'Day list',
 	activitiesCount: (n: number) => `${n} activities`,

@@ -43,7 +43,8 @@
 					</div>
 					<div class="head-badges"><Badges {activity} size="md" /></div>
 				</div>
-				<button class="close" onclick={store.closeDetail}>×</button>
+				<button class="edit" title={t.editActivityTitle} onclick={() => { store.closeDetail(); store.openEditActivity(activity.id); }}>✏️</button>
+			<button class="close" onclick={store.closeDetail}>×</button>
 			</div>
 
 			<div class="scroll">
@@ -182,6 +183,21 @@
 	}
 	.head-badges {
 		margin-top: 9px;
+	}
+	.edit {
+		border: none;
+		background: oklch(0.95 0.006 85);
+		color: oklch(0.4 0.012 70);
+		width: 30px;
+		height: 30px;
+		border-radius: 9px;
+		cursor: pointer;
+		font-size: 14px;
+		line-height: 1;
+		flex: 0 0 auto;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 	.close {
 		border: none;

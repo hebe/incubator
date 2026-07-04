@@ -68,6 +68,132 @@ export async function loadTripGraph(tripId: string): Promise<TripGraph | null> {
 	return { trip, bases, activities, days, placements, meta };
 }
 
+// ── Trip CRUD ──────────────────────────────────────────────────────────────
+
+export async function createTripWithDays(
+	destination: string,
+	startDate: string,
+	endDate: string,
+	baseDefs: Array<{ name: string; colorToken: string }>
+): Promise<Trip> {
+	const now = Date.now();
+	const id = uid();
+	const trip: Trip = { id, destination, startDate, endDate, createdAt: now, updatedAt: now };
+	const bases: Base[] = baseDefs.map((b, i) => ({
+		id: uid(),
+		tripId: id,
+		name: b.name,
+		colorToken: b.colorToken,
+		sortOrder: i,
+		updatedAt: now
+	}));
+	const firstBaseId = bases[0]?.id ?? null;
+	const days: Day[] = datesInRange(startDate, endDate).map((date, i) => ({
+		id: uid(),
+		tripId: id,
+		date,
+		baseId: firstBaseId,
+		sortOrder: i,
+		updatedAt: now
+	}));
+	await db.transaction('rw', db.trips, db.bases, db.days, async () => {
+		await db.trips.put(trip);
+		await db.bases.bulkPut(bases);
+		await db.days.bulkPut(days);
+	});
+	return trip;
+}
+
+export async function deleteTrip(tripId: string): Promise<void> {
+	const activities = await db.activities.where('tripId').equals(tripId).toArray();
+	const [baseKeys, activityKeys, dayKeys, placementKeys] = await Promise.all([
+		db.bases.where('tripId').equals(tripId).primaryKeys(),
+		db.activities.where('tripId').equals(tripId).primaryKeys(),
+		db.days.where('tripId').equals(tripId).primaryKeys(),
+		db.placements.where('tripId').equals(tripId).primaryKeys()
+	]);
+	await db.transaction(
+		'rw',
+		[db.trips, db.bases, db.activities, db.days, db.placements, db.activityMeta],
+		async () => {
+			await db.trips.delete(tripId);
+			await db.bases.bulkDelete(baseKeys as string[]);
+			await db.activities.bulkDelete(activityKeys as string[]);
+			await db.days.bulkDelete(dayKeys as string[]);
+			await db.placements.bulkDelete(placementKeys as string[]);
+			await db.activityMeta.bulkDelete(activities.map((a) => a.id));
+		}
+	);
+}
+
+// ── Activity CRUD ──────────────────────────────────────────────────────────
+
+export async function createActivity(
+	tripId: string,
+	data: Omit<Activity, 'id' | 'tripId' | 'updatedAt'>
+): Promise<Activity> {
+	const a: Activity = { id: uid(), tripId, ...data, updatedAt: Date.now() };
+	await db.activities.put(a);
+	return a;
+}
+
+export async function updateActivity(
+	id: string,
+	patch: Partial<Omit<Activity, 'id' | 'tripId' | 'updatedAt'>>
+): Promise<Activity | null> {
+	const existing = await db.activities.get(id);
+	if (!existing) return null;
+	const updated: Activity = { ...existing, ...patch, updatedAt: Date.now() };
+	await db.activities.put(updated);
+	return updated;
+}
+
+export async function deleteActivity(id: string): Promise<void> {
+	const placementKeys = await db.placements.where('activityId').equals(id).primaryKeys();
+	await db.transaction('rw', db.activities, db.placements, db.activityMeta, async () => {
+		await db.activities.delete(id);
+		await db.placements.bulkDelete(placementKeys as string[]);
+		await db.activityMeta.delete(id);
+	});
+}
+
+// ── Base CRUD ──────────────────────────────────────────────────────────────
+
+export async function addBase(
+	tripId: string,
+	name: string,
+	colorToken: string
+): Promise<Base> {
+	const existing = await db.bases.where('tripId').equals(tripId).toArray();
+	const base: Base = {
+		id: uid(),
+		tripId,
+		name,
+		colorToken,
+		sortOrder: existing.length,
+		updatedAt: Date.now()
+	};
+	await db.bases.put(base);
+	return base;
+}
+
+export async function removeBase(tripId: string, baseId: string): Promise<void> {
+	const allBases = await db.bases.where('tripId').equals(tripId).toArray();
+	const remaining = allBases.filter((b) => b.id !== baseId).sort((a, b) => a.sortOrder - b.sortOrder);
+	const fallbackId = remaining[0]?.id ?? null;
+	const affectedDays = await db.days
+		.where('tripId').equals(tripId)
+		.filter((d) => d.baseId === baseId)
+		.toArray();
+	const now = Date.now();
+	await db.transaction('rw', db.bases, db.days, async () => {
+		await db.bases.delete(baseId);
+		await db.days.bulkPut(affectedDays.map((d) => ({ ...d, baseId: fallbackId, updatedAt: now })));
+	});
+}
+
+// ── Seed ───────────────────────────────────────────────────────────────────
+
 // Seed the Mauritius trip on first run (M1 has no trip-creation UI yet).
 export async function seedIfEmpty(): Promise<string> {
 	const existing = await db.trips.get(SEED_TRIP.id);
