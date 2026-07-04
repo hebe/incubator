@@ -13,6 +13,8 @@
 	import MoodChip from '$lib/components/MoodChip.svelte';
 	import PickerModal from '$lib/components/PickerModal.svelte';
 	import DetailModal from '$lib/components/DetailModal.svelte';
+	import ActivityForm from '$lib/components/ActivityForm.svelte';
+	import BasesModal from '$lib/components/BasesModal.svelte';
 
 	const store = new PlannerStore();
 
@@ -33,9 +35,15 @@
 	<div class="app">
 		<!-- Sticky header -->
 		<header>
-			<div class="brand">
-				<div class="wordmark">{trip.destination.toUpperCase()}</div>
-				<div class="subtitle">{rangeSubtitle(trip.startDate, trip.endDate)}</div>
+			<div class="header-left">
+				<a class="back" href="/">{t.back}</a>
+				<div class="brand">
+					<div class="wordmark">{trip.destination.toUpperCase()}</div>
+					<div class="subtitle">
+						{rangeSubtitle(trip.startDate, trip.endDate)}
+						<button class="bases-btn" onclick={store.openBasesManager}>bases</button>
+					</div>
+				</div>
 			</div>
 			<div class="header-right">
 				<div class="pills">
@@ -67,9 +75,12 @@
 							{t.addingTo} <strong>{selectedLabel}</strong> · {t.bankSubtitlePrefix}
 						</div>
 					</div>
-					<div class="legend">
-						<span>{t.legendGoodWeather}</span><span>{t.legendRainy}</span>
-						<span>{t.legendCar}</span><span>{t.legendReusable}</span>
+					<div class="bank-head-right">
+						<div class="legend">
+							<span>{t.legendGoodWeather}</span><span>{t.legendRainy}</span>
+							<span>{t.legendCar}</span><span>{t.legendReusable}</span>
+						</div>
+						<button class="new-activity-btn" onclick={store.openNewActivity}>{t.newActivityBtn}</button>
 					</div>
 				</div>
 				<div class="bank-filter"><CategoryFilter filter={store.filter} onselect={store.setFilter} /></div>
@@ -132,6 +143,14 @@
 
 		<PickerModal {store} />
 		<DetailModal {store} />
+		{#if store.activityFormMode !== 'closed'}
+			{#key store.activityFormMode}
+				<ActivityForm {store} />
+			{/key}
+		{/if}
+		{#if store.basesOpen}
+			<BasesModal {store} />
+		{/if}
 	</div>
 {/if}
 
@@ -149,10 +168,37 @@
 		top: 0;
 		z-index: 20;
 	}
+	.header-left {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+	}
+	.back {
+		font-size: 11.5px;
+		font-weight: 600;
+		color: var(--text-2);
+		text-decoration: none;
+		margin-bottom: 2px;
+	}
+	.back:hover {
+		color: var(--action);
+	}
 	.brand {
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
+	}
+	.bases-btn {
+		margin-left: 8px;
+		font-size: 11px;
+		font-weight: 600;
+		color: var(--action);
+		background: var(--action-soft-bg);
+		border: 1px solid var(--action-soft-border);
+		border-radius: var(--r-chip);
+		padding: 2px 8px;
+		cursor: pointer;
+		vertical-align: middle;
 	}
 	.wordmark {
 		font-size: 20px;
@@ -230,6 +276,23 @@
 		gap: 14px;
 		flex-wrap: wrap;
 		margin-bottom: 13px;
+	}
+	.bank-head-right {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 8px;
+	}
+	.new-activity-btn {
+		font-size: 13px;
+		font-weight: 700;
+		color: #fff;
+		background: var(--action);
+		border: none;
+		border-radius: var(--r-chip);
+		padding: 8px 16px;
+		cursor: pointer;
+		white-space: nowrap;
 	}
 	.bank-title {
 		font-size: 15px;
