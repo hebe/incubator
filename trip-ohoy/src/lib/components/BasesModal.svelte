@@ -62,6 +62,7 @@
 							class="swatch"
 							class:selected={newColor === key}
 							style="background:{pal.color};"
+							title={key}
 							onclick={() => (newColor = key)}
 						></button>
 					{/each}

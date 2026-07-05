@@ -2,6 +2,7 @@
 	// Modal form for creating and editing activities. Opened from the bank (create)
 	// or from DetailModal's edit button (edit). Uses {#key} in the parent to remount
 	// on each open so local state initialises fresh from the existing activity.
+	import { untrack } from 'svelte';
 	import type { PlannerStore } from '$lib/stores/planner.svelte';
 	import { CATEGORIES, CATEGORY_BY_KEY } from '$lib/data/catalog';
 	import type { CategoryKey, Energy, Weather } from '$lib/types';
@@ -17,19 +18,21 @@
 		isEdit ? store.activityById.get(store.activityFormMode as string) : undefined
 	);
 
-	// Form state — initialised by the parent's {#key} remount trick
-	let emoji = $state(existing?.emoji ?? '✈️');
-	let name = $state(existing?.name ?? '');
-	let category = $state<CategoryKey>(existing?.category ?? 'sight');
-	let durationLabel = $state(existing?.durationLabel ?? 'Full day');
-	let energy = $state<Energy>(existing?.energy ?? 'Medium');
-	let weather = $state<Weather>(existing?.weather ?? 'any');
-	let needsCar = $state(existing?.needsCar ?? false);
-	let reusable = $state(existing?.reusable ?? false);
-	let confirmed = $state(existing?.confirmed ?? false);
-	let placeLabel = $state(existing?.placeLabel ?? '');
-	let lat = $state(existing?.lat ?? 0);
-	let lng = $state(existing?.lng ?? 0);
+	// Form state — initialised by the parent's {#key} remount trick.
+	// Captured into `init` first so $state() reads a plain value, not a reactive derived.
+	const init = untrack(() => existing);
+	let emoji = $state(init?.emoji ?? '✈️');
+	let name = $state(init?.name ?? '');
+	let category = $state<CategoryKey>(init?.category ?? 'sight');
+	let durationLabel = $state(init?.durationLabel ?? 'Full day');
+	let energy = $state<Energy>(init?.energy ?? 'Medium');
+	let weather = $state<Weather>(init?.weather ?? 'any');
+	let needsCar = $state(init?.needsCar ?? false);
+	let reusable = $state(init?.reusable ?? false);
+	let confirmed = $state(init?.confirmed ?? false);
+	let placeLabel = $state(init?.placeLabel ?? '');
+	let lat = $state(init?.lat ?? 0);
+	let lng = $state(init?.lng ?? 0);
 
 	const catColorVar = $derived(CATEGORY_BY_KEY[category]?.colorVar ?? 'var(--action)');
 	const canSave = $derived(name.trim().length > 0);
@@ -62,18 +65,18 @@
 			<!-- Emoji + Name -->
 			<div class="row">
 				<div class="field">
-					<label class="lbl">{t.emojiLabel}</label>
-					<input class="in emoji-in" bind:value={emoji} maxlength={4} />
+					<label class="lbl" for="af-emoji">{t.emojiLabel}</label>
+					<input id="af-emoji" class="in emoji-in" bind:value={emoji} maxlength={4} />
 				</div>
 				<div class="field grow">
-					<label class="lbl">{t.activityNameLabel}</label>
-					<input class="in" bind:value={name} placeholder={t.activityNamePlaceholder} />
+					<label class="lbl" for="af-name">{t.activityNameLabel}</label>
+					<input id="af-name" class="in" bind:value={name} placeholder={t.activityNamePlaceholder} />
 				</div>
 			</div>
 
 			<!-- Category -->
 			<div class="field">
-				<label class="lbl">{t.categoryLabel}</label>
+				<div class="lbl">{t.categoryLabel}</div>
 				<div class="cat-grid">
 					{#each CATEGORIES as cat}
 						<button
@@ -91,14 +94,14 @@
 			<!-- Duration + Energy -->
 			<div class="row">
 				<div class="field grow">
-					<label class="lbl">{t.durationLabel}</label>
-					<input class="in" list="dur-list" bind:value={durationLabel} placeholder={t.durationPlaceholder} />
+					<label class="lbl" for="af-duration">{t.durationLabel}</label>
+					<input id="af-duration" class="in" list="dur-list" bind:value={durationLabel} placeholder={t.durationPlaceholder} />
 					<datalist id="dur-list">
 						{#each DURATION_PRESETS as d}<option value={d}></option>{/each}
 					</datalist>
 				</div>
 				<div class="field">
-					<label class="lbl">{t.energyLabel}</label>
+					<div class="lbl">{t.energyLabel}</div>
 					<div class="seg">
 						{#each ['Low', 'Medium', 'High'] as e}
 							<button class="seg-btn" class:active={energy === e} onclick={() => (energy = e as Energy)}>{e}</button>
@@ -109,7 +112,7 @@
 
 			<!-- Weather -->
 			<div class="field">
-				<label class="lbl">{t.weatherLabel}</label>
+				<div class="lbl">{t.weatherLabel}</div>
 				<div class="seg">
 					<button class="seg-btn" class:active={weather === 'good'} onclick={() => (weather = 'good')}>☀️ Good weather</button>
 					<button class="seg-btn" class:active={weather === 'rainy'} onclick={() => (weather = 'rainy')}>🌧️ Rainy day</button>
@@ -126,13 +129,13 @@
 
 			<!-- Place label -->
 			<div class="field">
-				<label class="lbl">{t.placeLabelField}</label>
-				<input class="in" bind:value={placeLabel} placeholder="e.g. Tamarin Bay (west)" />
+				<label class="lbl" for="af-place">{t.placeLabelField}</label>
+				<input id="af-place" class="in" bind:value={placeLabel} placeholder="e.g. Tamarin Bay (west)" />
 			</div>
 
-			<!-- Map picker — key forces remount when category color changes so pin updates -->
+			<!-- Map picker -->
 			<div class="field">
-				<label class="lbl">{t.locationLabel}</label>
+				<div class="lbl">{t.locationLabel}</div>
 				<MapPicker bind:lat bind:lng colorVar={catColorVar} />
 			</div>
 		</div>

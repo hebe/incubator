@@ -54,6 +54,15 @@
 					<button class:active={store.view === 'board'} onclick={() => store.setView('board')}>{t.overview}</button>
 					<button class:active={store.view === 'list'} onclick={() => store.setView('list')}>{t.dayList}</button>
 				</div>
+				<button
+					class="sync-btn"
+					class:syncing={store.syncStatus === 'syncing'}
+					class:error={store.syncStatus === 'error'}
+					onclick={() => store.sync()}
+					title="Sync to cloud"
+				>
+					{store.syncStatus === 'syncing' ? '↻' : store.syncStatus === 'error' ? '⚠' : store.syncStatus === 'synced' ? '✓' : '☁'}
+				</button>
 			</div>
 		</header>
 
@@ -249,6 +258,32 @@
 		background: var(--surface);
 		color: oklch(0.3 0.05 220);
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+	}
+	.sync-btn {
+		font-size: 16px;
+		width: 30px;
+		height: 30px;
+		border-radius: 50%;
+		border: 1px solid var(--border);
+		background: var(--surface);
+		color: var(--text-2);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: color 0.15s, border-color 0.15s;
+	}
+	.sync-btn.syncing {
+		color: var(--action);
+		border-color: var(--action);
+		animation: spin 1s linear infinite;
+	}
+	.sync-btn.error {
+		color: oklch(0.55 0.18 30);
+		border-color: oklch(0.55 0.18 30);
+	}
+	@keyframes spin {
+		to { transform: rotate(360deg); }
 	}
 	.hint {
 		padding: 16px 24px 4px;
