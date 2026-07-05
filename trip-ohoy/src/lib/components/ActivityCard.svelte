@@ -19,7 +19,7 @@
 
 <div
 	class="card"
-	style="border-left:3px solid {color};"
+	style="border-left:3px solid {color};{activity.confirmed ? `background:color-mix(in oklch, ${color} 10%, white);` : ''}"
 	role="button"
 	tabindex="0"
 	title={t.showDetails}

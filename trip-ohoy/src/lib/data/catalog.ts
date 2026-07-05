@@ -75,6 +75,7 @@ export interface SeedActivity {
 	weather: Weather;
 	needsCar: boolean;
 	reusable: boolean;
+	confirmed: boolean;
 	placeLabel: string;
 	lat: number;
 	lng: number;
@@ -82,17 +83,17 @@ export interface SeedActivity {
 
 export const SEED_ACTIVITIES: SeedActivity[] = [
 	// eslint-disable-next-line prettier/prettier
-	{ id: 'dolphin', emoji: '🐬', name: 'Dolphin & whale safari', category: 'water', durationLabel: 'Full day', energy: 'High', weather: 'good', needsCar: true, reusable: false, placeLabel: 'Tamarin Bay (west)', lat: -20.3255, lng: 57.3706 },
-	{ id: 'snorkel', emoji: '⛵', name: 'Snorkeling – Gabriel Island', category: 'water', durationLabel: 'Full day', energy: 'Medium', weather: 'good', needsCar: true, reusable: false, placeLabel: 'Gabriel Island (north)', lat: -19.8892, lng: 57.6636 },
-	{ id: 'casela', emoji: '🦁', name: 'Casela Nature Parks', category: 'nature', durationLabel: 'Full day', energy: 'High', weather: 'any', needsCar: true, reusable: false, placeLabel: 'Cascavelle (west)', lat: -20.2833, lng: 57.3833 },
-	{ id: 'chamarel', emoji: '🏔️', name: 'Chamarel – coloured earth', category: 'sight', durationLabel: 'Half day', energy: 'Medium', weather: 'any', needsCar: true, reusable: false, placeLabel: 'Chamarel (southwest)', lat: -20.4436, lng: 57.3736 },
-	{ id: 'pamplemousses', emoji: '🌺', name: 'Pamplemousses Botanical Garden', category: 'sight', durationLabel: 'Half day', energy: 'Low', weather: 'any', needsCar: true, reusable: false, placeLabel: 'Pamplemousses (north)', lat: -20.1042, lng: 57.5794 },
-	{ id: 'odysseo', emoji: '🐙', name: 'Odysseo Aquarium', category: 'sight', durationLabel: '2 hours', energy: 'Low', weather: 'rainy', needsCar: true, reusable: false, placeLabel: 'Port Louis (Caudan)', lat: -20.16, lng: 57.4989 },
-	{ id: 'beach', emoji: '🌊', name: 'Beach day', category: 'rest', durationLabel: 'Full day', energy: 'Low', weather: 'good', needsCar: false, reusable: true, placeLabel: 'Grand Baie (north)', lat: -20.0136, lng: 57.5803 },
-	{ id: 'pool', emoji: '🛋️', name: 'Rest & pool day', category: 'rest', durationLabel: 'Full day', energy: 'Low', weather: 'any', needsCar: false, reusable: true, placeLabel: 'At the base', lat: -20.0136, lng: 57.5803 },
-	{ id: 'restaurant', emoji: '🍽️', name: 'Dinner out', category: 'food', durationLabel: '2 hours', energy: 'Low', weather: 'any', needsCar: false, reusable: true, placeLabel: 'Grand Baie centre', lat: -20.0136, lng: 57.5803 },
-	{ id: 'homecooked', emoji: '🍳', name: 'Dinner at home', category: 'food', durationLabel: '2 hours', energy: 'Low', weather: 'any', needsCar: false, reusable: true, placeLabel: 'Home', lat: -20.0136, lng: 57.5803 },
-	{ id: 'groceries', emoji: '🛒', name: 'Grocery run (Super U)', category: 'shop', durationLabel: '1 hour', energy: 'Low', weather: 'any', needsCar: true, reusable: true, placeLabel: 'Super U, Grand Baie', lat: -20.0189, lng: 57.5817 }
+	{ id: 'dolphin', emoji: '🐬', name: 'Dolphin & whale safari', category: 'water', durationLabel: 'Full day', energy: 'High', weather: 'good', needsCar: true, reusable: false, confirmed: false, placeLabel: 'Tamarin Bay (west)', lat: -20.3255, lng: 57.3706 },
+	{ id: 'snorkel', emoji: '⛵', name: 'Snorkeling – Gabriel Island', category: 'water', durationLabel: 'Full day', energy: 'Medium', weather: 'good', needsCar: true, reusable: false, confirmed: false, placeLabel: 'Gabriel Island (north)', lat: -19.8892, lng: 57.6636 },
+	{ id: 'casela', emoji: '🦁', name: 'Casela Nature Parks', category: 'nature', durationLabel: 'Full day', energy: 'High', weather: 'any', needsCar: true, reusable: false, confirmed: false, placeLabel: 'Cascavelle (west)', lat: -20.2833, lng: 57.3833 },
+	{ id: 'chamarel', emoji: '🏔️', name: 'Chamarel – coloured earth', category: 'sight', durationLabel: 'Half day', energy: 'Medium', weather: 'any', needsCar: true, reusable: false, confirmed: false, placeLabel: 'Chamarel (southwest)', lat: -20.4436, lng: 57.3736 },
+	{ id: 'pamplemousses', emoji: '🌺', name: 'Pamplemousses Botanical Garden', category: 'sight', durationLabel: 'Half day', energy: 'Low', weather: 'any', needsCar: true, reusable: false, confirmed: false, placeLabel: 'Pamplemousses (north)', lat: -20.1042, lng: 57.5794 },
+	{ id: 'odysseo', emoji: '🐙', name: 'Odysseo Aquarium', category: 'sight', durationLabel: '2 hours', energy: 'Low', weather: 'rainy', needsCar: true, reusable: false, confirmed: false, placeLabel: 'Port Louis (Caudan)', lat: -20.16, lng: 57.4989 },
+	{ id: 'beach', emoji: '🌊', name: 'Beach day', category: 'rest', durationLabel: 'Full day', energy: 'Low', weather: 'good', needsCar: false, reusable: true, confirmed: false, placeLabel: 'Grand Baie (north)', lat: -20.0136, lng: 57.5803 },
+	{ id: 'pool', emoji: '🛋️', name: 'Rest & pool day', category: 'rest', durationLabel: 'Full day', energy: 'Low', weather: 'any', needsCar: false, reusable: true, confirmed: false, placeLabel: 'At the base', lat: -20.0136, lng: 57.5803 },
+	{ id: 'restaurant', emoji: '🍽️', name: 'Dinner out', category: 'food', durationLabel: '2 hours', energy: 'Low', weather: 'any', needsCar: false, reusable: true, confirmed: false, placeLabel: 'Grand Baie centre', lat: -20.0136, lng: 57.5803 },
+	{ id: 'homecooked', emoji: '🍳', name: 'Dinner at home', category: 'food', durationLabel: '2 hours', energy: 'Low', weather: 'any', needsCar: false, reusable: true, confirmed: false, placeLabel: 'Home', lat: -20.0136, lng: 57.5803 },
+	{ id: 'groceries', emoji: '🛒', name: 'Grocery run (Super U)', category: 'shop', durationLabel: '1 hour', energy: 'Low', weather: 'any', needsCar: true, reusable: true, confirmed: false, placeLabel: 'Super U, Grand Baie', lat: -20.0189, lng: 57.5817 }
 ];
 
 // Which base each day starts on (index 0..9): first 7 north, last 3 southwest.

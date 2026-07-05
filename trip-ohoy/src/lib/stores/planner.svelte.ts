@@ -160,6 +160,13 @@ export class PlannerStore {
 	}
 
 	// ── Activity CRUD ───────────────────────────────────────────────────────────
+	async toggleConfirmed(activityId: string) {
+		const a = this.activityById.get(activityId);
+		if (!a) return;
+		const updated = await dbUpdateActivity(activityId, { confirmed: !a.confirmed });
+		if (updated) this.activities = this.activities.map((x) => (x.id === activityId ? updated : x));
+	}
+
 	async saveActivity(data: Omit<Activity, 'id' | 'tripId' | 'updatedAt'>, editId?: string) {
 		if (!this.trip) return;
 		if (editId) {

@@ -12,12 +12,14 @@
 		activity,
 		used,
 		onadd,
-		onopendetail
+		onopendetail,
+		ontoggleconfirmed
 	}: {
 		activity: Activity;
 		used: boolean;
 		onadd: () => void;
 		onopendetail: (e: MouseEvent) => void;
+		ontoggleconfirmed: (e: MouseEvent) => void;
 	} = $props();
 
 	const cat = $derived(CATEGORY_BY_KEY[activity.category]);
@@ -33,7 +35,8 @@
 <div
 	class="card"
 	class:used
-	style="border-left:4px solid {cat.colorVar};"
+	class:confirmed={activity.confirmed}
+	style="border-left:4px solid {cat.colorVar};{activity.confirmed ? `background:color-mix(in oklch, ${cat.colorVar} 10%, white);` : ''}"
 	role="button"
 	tabindex="0"
 	draggable={!used}
@@ -61,6 +64,13 @@
 	{:else}
 		<button class="info" title={t.showDetails} onclick={onopendetail}>i</button>
 	{/if}
+	<button
+		class="confirm"
+		class:on={activity.confirmed}
+		style={activity.confirmed ? `color:${cat.colorVar};border-color:${cat.colorVar};` : ''}
+		title={t.confirmedLabel}
+		onclick={ontoggleconfirmed}
+	>✓</button>
 </div>
 
 <style>
@@ -147,5 +157,32 @@
 	}
 	.info:hover {
 		background: oklch(0.95 0.014 230);
+	}
+	.confirm {
+		position: absolute;
+		bottom: 8px;
+		right: 8px;
+		width: 22px;
+		height: 22px;
+		border-radius: 50%;
+		border: 1.5px solid oklch(0.82 0.01 85);
+		background: transparent;
+		color: oklch(0.78 0.01 85);
+		font-size: 11px;
+		font-weight: 700;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		line-height: 1;
+		padding: 0;
+		transition: border-color 0.12s, color 0.12s, background 0.12s;
+	}
+	.confirm.on {
+		background: color-mix(in oklch, currentColor 15%, white);
+	}
+	.confirm:hover {
+		border-color: oklch(0.55 0.06 150);
+		color: oklch(0.45 0.09 150);
 	}
 </style>

@@ -26,6 +26,7 @@
 	let weather = $state<Weather>(existing?.weather ?? 'any');
 	let needsCar = $state(existing?.needsCar ?? false);
 	let reusable = $state(existing?.reusable ?? false);
+	let confirmed = $state(existing?.confirmed ?? false);
 	let placeLabel = $state(existing?.placeLabel ?? '');
 	let lat = $state(existing?.lat ?? 0);
 	let lng = $state(existing?.lng ?? 0);
@@ -38,7 +39,7 @@
 	async function save() {
 		if (!canSave) return;
 		await store.saveActivity(
-			{ emoji, name: name.trim(), category, durationLabel, energy, weather, needsCar, reusable, placeLabel, lat, lng },
+			{ emoji, name: name.trim(), category, durationLabel, energy, weather, needsCar, reusable, confirmed, placeLabel, lat, lng },
 			isEdit ? (store.activityFormMode as string) : undefined
 		);
 	}
@@ -120,6 +121,7 @@
 			<div class="toggles">
 				<label class="toggle"><input type="checkbox" bind:checked={needsCar} /><span>🚗 {t.needsCarLabel}</span></label>
 				<label class="toggle"><input type="checkbox" bind:checked={reusable} /><span>↻ {t.reusableLabel2}</span></label>
+				<label class="toggle"><input type="checkbox" bind:checked={confirmed} /><span>✓ {t.confirmedLabel}</span></label>
 			</div>
 
 			<!-- Place label -->
