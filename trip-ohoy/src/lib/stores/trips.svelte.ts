@@ -9,7 +9,8 @@ export class TripsStore {
 	loaded = $state(false);
 
 	async loadAll() {
-		this.trips = await db.trips.orderBy('createdAt').toArray();
+		const all = await db.trips.toArray();
+		this.trips = all.sort((a, b) => a.createdAt - b.createdAt);
 		this.loaded = true;
 	}
 

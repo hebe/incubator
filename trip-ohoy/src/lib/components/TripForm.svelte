@@ -28,9 +28,7 @@
 	);
 	const canCreate = $derived(
 		destination.trim().length > 0 &&
-		startDate.length > 0 &&
-		endDate.length > 0 &&
-		startDate <= endDate &&
+		(!startDate || !endDate || startDate <= endDate) &&
 		bases.some((b) => b.name.trim().length > 0)
 	);
 
@@ -79,11 +77,11 @@
 			<!-- Dates -->
 			<div class="row">
 				<div class="field grow">
-					<label class="lbl" for="tf-start">{t.departureDateLabel}</label>
+					<label class="lbl" for="tf-start">{t.departureDateLabel} <span class="opt">optional</span></label>
 					<input id="tf-start" class="in" type="date" bind:value={startDate} />
 				</div>
 				<div class="field grow">
-					<label class="lbl" for="tf-end">{t.returnDateLabel}</label>
+					<label class="lbl" for="tf-end">{t.returnDateLabel} <span class="opt">optional</span></label>
 					<input id="tf-end" class="in" type="date" bind:value={endDate} min={startDate} />
 				</div>
 				{#if dayCount > 0}
@@ -203,6 +201,13 @@
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		color: var(--text-2);
+	}
+	.opt {
+		font-weight: 400;
+		text-transform: none;
+		letter-spacing: 0;
+		color: var(--text-faint);
+		font-style: italic;
 	}
 	.in {
 		font-family: inherit;
