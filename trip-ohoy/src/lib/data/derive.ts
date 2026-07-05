@@ -93,6 +93,7 @@ export function dateLong(iso: string): string {
 
 // Every ISO date from start..end inclusive.
 export function datesInRange(startISO: string, endISO: string): string[] {
+	if (!startISO || !endISO) return [];
 	const out: string[] = [];
 	const start = parseISO(startISO);
 	const end = parseISO(endISO);
@@ -107,6 +108,7 @@ export function datesInRange(startISO: string, endISO: string): string[] {
 
 // "31 July – 9 August 2026" style range subtitle.
 export function rangeSubtitle(startISO: string, endISO: string): string {
+	if (!startISO || !endISO) return 'Dates TBD';
 	const s = parseISO(startISO);
 	const e = parseISO(endISO);
 	const left = `${s.getDate()} ${MONTHS_FULL[s.getMonth()]}`;
