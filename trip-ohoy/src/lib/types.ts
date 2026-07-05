@@ -6,6 +6,8 @@ export type CategoryKey = 'water' | 'nature' | 'sight' | 'rest' | 'food' | 'shop
 export type Energy = 'Low' | 'Medium' | 'High';
 export type Weather = 'good' | 'rainy' | 'any';
 
+// Soft-delete tombstone: falsy (undefined / 0) = live, a timestamp = deleted. Rows are
+// never hard-deleted so the deletion propagates through LWW sync instead of resurrecting.
 export interface Trip {
 	id: string;
 	destination: string;
@@ -13,6 +15,7 @@ export interface Trip {
 	endDate: string; // ISO yyyy-mm-dd
 	createdAt: number;
 	updatedAt: number;
+	deletedAt?: number;
 }
 
 export interface Base {
@@ -22,6 +25,7 @@ export interface Base {
 	colorToken: string; // key into BASE_PALETTE (see catalog.ts)
 	sortOrder: number;
 	updatedAt: number;
+	deletedAt?: number;
 }
 
 export interface Activity {
@@ -40,6 +44,7 @@ export interface Activity {
 	lat: number;
 	lng: number;
 	updatedAt: number;
+	deletedAt?: number;
 }
 
 export interface Day {
@@ -49,6 +54,7 @@ export interface Day {
 	baseId: string | null;
 	sortOrder: number;
 	updatedAt: number;
+	deletedAt?: number;
 }
 
 export interface Placement {
@@ -58,6 +64,7 @@ export interface Placement {
 	activityId: string;
 	sortOrder: number;
 	updatedAt: number;
+	deletedAt?: number;
 }
 
 export interface Link {
@@ -70,6 +77,7 @@ export interface ActivityMeta {
 	notes: string;
 	links: Link[];
 	updatedAt: number;
+	deletedAt?: number;
 }
 
 export type Mood = 'Active day' | 'Balanced day' | 'Calm day';

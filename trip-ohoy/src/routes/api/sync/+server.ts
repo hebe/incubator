@@ -9,7 +9,7 @@ import {
 	placements,
 	activityMeta
 } from '$lib/db/schema';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { Activity, ActivityMeta, Base, Day, Link, Placement, Trip } from '$lib/types';
 
 interface SyncPayload {
@@ -22,11 +22,12 @@ interface SyncPayload {
 		placements?: Placement[];
 		activityMeta?: ActivityMeta[];
 	};
-	// Ids the client has deleted (no tombstones yet — see the store's sync()).
-	del?: {
-		days?: string[];
-		placements?: string[];
-	};
+}
+
+// Ensure the tombstone column is present on every pushed row (undefined → live = 0), so
+// Drizzle's bulk insert sees a consistent column set.
+function withTomb<T extends { deletedAt?: number }>(rows: T[]): (T & { deletedAt: number })[] {
+	return rows.map((r) => ({ ...r, deletedAt: r.deletedAt ?? 0 }));
 }
 
 // LWW upsert helpers — only update if the incoming record is newer.
@@ -35,7 +36,7 @@ async function upsertTrips(rows: Trip[]) {
 	if (!rows.length) return;
 	await db
 		.insert(trips)
-		.values(rows)
+		.values(withTomb(rows))
 		.onConflictDoUpdate({
 			target: trips.id,
 			set: {
@@ -43,7 +44,8 @@ async function upsertTrips(rows: Trip[]) {
 				startDate: sql`excluded.start_date`,
 				endDate: sql`excluded.end_date`,
 				createdAt: sql`excluded.created_at`,
-				updatedAt: sql`excluded.updated_at`
+				updatedAt: sql`excluded.updated_at`,
+				deletedAt: sql`excluded.deleted_at`
 			},
 			setWhere: sql`excluded.updated_at > ${trips.updatedAt}`
 		});
@@ -53,7 +55,7 @@ async function upsertBases(rows: Base[]) {
 	if (!rows.length) return;
 	await db
 		.insert(bases)
-		.values(rows)
+		.values(withTomb(rows))
 		.onConflictDoUpdate({
 			target: bases.id,
 			set: {
@@ -61,7 +63,8 @@ async function upsertBases(rows: Base[]) {
 				name: sql`excluded.name`,
 				colorToken: sql`excluded.color_token`,
 				sortOrder: sql`excluded.sort_order`,
-				updatedAt: sql`excluded.updated_at`
+				updatedAt: sql`excluded.updated_at`,
+				deletedAt: sql`excluded.deleted_at`
 			},
 			setWhere: sql`excluded.updated_at > ${bases.updatedAt}`
 		});
@@ -71,7 +74,7 @@ async function upsertActivities(rows: Activity[]) {
 	if (!rows.length) return;
 	await db
 		.insert(activities)
-		.values(rows)
+		.values(withTomb(rows))
 		.onConflictDoUpdate({
 			target: activities.id,
 			set: {
@@ -88,7 +91,8 @@ async function upsertActivities(rows: Activity[]) {
 				placeLabel: sql`excluded.place_label`,
 				lat: sql`excluded.lat`,
 				lng: sql`excluded.lng`,
-				updatedAt: sql`excluded.updated_at`
+				updatedAt: sql`excluded.updated_at`,
+				deletedAt: sql`excluded.deleted_at`
 			},
 			setWhere: sql`excluded.updated_at > ${activities.updatedAt}`
 		});
@@ -98,7 +102,7 @@ async function upsertDays(rows: Day[]) {
 	if (!rows.length) return;
 	await db
 		.insert(days)
-		.values(rows)
+		.values(withTomb(rows))
 		.onConflictDoUpdate({
 			target: days.id,
 			set: {
@@ -106,7 +110,8 @@ async function upsertDays(rows: Day[]) {
 				date: sql`excluded.date`,
 				baseId: sql`excluded.base_id`,
 				sortOrder: sql`excluded.sort_order`,
-				updatedAt: sql`excluded.updated_at`
+				updatedAt: sql`excluded.updated_at`,
+				deletedAt: sql`excluded.deleted_at`
 			},
 			setWhere: sql`excluded.updated_at > ${days.updatedAt}`
 		});
@@ -116,7 +121,7 @@ async function upsertPlacements(rows: Placement[]) {
 	if (!rows.length) return;
 	await db
 		.insert(placements)
-		.values(rows)
+		.values(withTomb(rows))
 		.onConflictDoUpdate({
 			target: placements.id,
 			set: {
@@ -124,7 +129,8 @@ async function upsertPlacements(rows: Placement[]) {
 				dayId: sql`excluded.day_id`,
 				activityId: sql`excluded.activity_id`,
 				sortOrder: sql`excluded.sort_order`,
-				updatedAt: sql`excluded.updated_at`
+				updatedAt: sql`excluded.updated_at`,
+				deletedAt: sql`excluded.deleted_at`
 			},
 			setWhere: sql`excluded.updated_at > ${placements.updatedAt}`
 		});
@@ -134,13 +140,14 @@ async function upsertActivityMeta(rows: ActivityMeta[]) {
 	if (!rows.length) return;
 	await db
 		.insert(activityMeta)
-		.values(rows.map((m) => ({ ...m, links: m.links as Link[] })))
+		.values(rows.map((m) => ({ ...m, links: m.links as Link[], deletedAt: m.deletedAt ?? 0 })))
 		.onConflictDoUpdate({
 			target: activityMeta.activityId,
 			set: {
 				notes: sql`excluded.notes`,
 				links: sql`excluded.links`,
-				updatedAt: sql`excluded.updated_at`
+				updatedAt: sql`excluded.updated_at`,
+				deletedAt: sql`excluded.deleted_at`
 			},
 			setWhere: sql`excluded.updated_at > ${activityMeta.updatedAt}`
 		});
@@ -161,10 +168,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		error(400, 'Invalid JSON');
 	}
 
-	const { tripId, push, del } = body;
+	const { tripId, push } = body;
 	if (!tripId) error(400, 'tripId required');
 
-	// Push client records to server (LWW)
+	// Push client records to server (LWW). Deletions arrive as tombstones (deletedAt set)
+	// and flow through the same upserts — no separate delete path.
 	await Promise.all([
 		upsertTrips(push.trips ?? []),
 		upsertBases(push.bases ?? []),
@@ -173,16 +181,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		upsertPlacements(push.placements ?? []),
 		upsertActivityMeta(push.activityMeta ?? [])
 	]);
-
-	// Apply explicit deletes, scoped to this trip. Placements first (they hang off days).
-	if (del?.placements?.length) {
-		await db
-			.delete(placements)
-			.where(and(eq(placements.tripId, tripId), inArray(placements.id, del.placements)));
-	}
-	if (del?.days?.length) {
-		await db.delete(days).where(and(eq(days.tripId, tripId), inArray(days.id, del.days)));
-	}
 
 	// Return current server state for this trip
 	const [tripsData, basesData, activitiesData, daysData, placementsData] = await Promise.all([

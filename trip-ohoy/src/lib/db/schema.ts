@@ -6,7 +6,8 @@ export const trips = pgTable('trips', {
 	startDate: text('start_date').notNull(),
 	endDate: text('end_date').notNull(),
 	createdAt: bigint('created_at', { mode: 'number' }).notNull(),
-	updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
+	updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+	deletedAt: bigint('deleted_at', { mode: 'number' }).notNull().default(0)
 });
 
 export const bases = pgTable('bases', {
@@ -15,7 +16,8 @@ export const bases = pgTable('bases', {
 	name: text('name').notNull(),
 	colorToken: text('color_token').notNull(),
 	sortOrder: integer('sort_order').notNull(),
-	updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
+	updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+	deletedAt: bigint('deleted_at', { mode: 'number' }).notNull().default(0)
 });
 
 export const activities = pgTable('activities', {
@@ -33,7 +35,8 @@ export const activities = pgTable('activities', {
 	placeLabel: text('place_label').notNull().default(''),
 	lat: doublePrecision('lat').notNull().default(0),
 	lng: doublePrecision('lng').notNull().default(0),
-	updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
+	updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+	deletedAt: bigint('deleted_at', { mode: 'number' }).notNull().default(0)
 });
 
 export const days = pgTable('days', {
@@ -42,7 +45,8 @@ export const days = pgTable('days', {
 	date: text('date').notNull(),
 	baseId: text('base_id'),
 	sortOrder: integer('sort_order').notNull(),
-	updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
+	updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+	deletedAt: bigint('deleted_at', { mode: 'number' }).notNull().default(0)
 });
 
 export const placements = pgTable('placements', {
@@ -51,12 +55,14 @@ export const placements = pgTable('placements', {
 	dayId: text('day_id').notNull(),
 	activityId: text('activity_id').notNull(),
 	sortOrder: integer('sort_order').notNull(),
-	updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
+	updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+	deletedAt: bigint('deleted_at', { mode: 'number' }).notNull().default(0)
 });
 
 export const activityMeta = pgTable('activity_meta', {
 	activityId: text('activity_id').primaryKey(),
 	notes: text('notes').notNull().default(''),
 	links: jsonb('links').notNull().default([]),
-	updatedAt: bigint('updated_at', { mode: 'number' }).notNull()
+	updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+	deletedAt: bigint('deleted_at', { mode: 'number' }).notNull().default(0)
 });

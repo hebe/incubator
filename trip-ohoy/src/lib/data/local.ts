@@ -40,6 +40,12 @@ export function uid(): string {
 	return crypto.randomUUID();
 }
 
+// Tombstones (deletedAt set) stay in Dexie so deletions propagate through sync, but they
+// must never surface in the UI. `live` filters them out at read time.
+function live<T extends { deletedAt?: number }>(rows: T[]): T[] {
+	return rows.filter((r) => !r.deletedAt);
+}
+
 // Everything needed to render one trip's planner.
 export interface TripGraph {
 	trip: Trip;
@@ -52,17 +58,21 @@ export interface TripGraph {
 
 export async function loadTripGraph(tripId: string): Promise<TripGraph | null> {
 	const trip = await db.trips.get(tripId);
-	if (!trip) return null;
-	const [bases, activities, days, placements, metaRows] = await Promise.all([
+	if (!trip || trip.deletedAt) return null;
+	const [basesRaw, activitiesRaw, daysRaw, placementsRaw, metaRaw] = await Promise.all([
 		db.bases.where('tripId').equals(tripId).toArray(),
 		db.activities.where('tripId').equals(tripId).toArray(),
 		db.days.where('tripId').equals(tripId).toArray(),
 		db.placements.where('tripId').equals(tripId).toArray(),
 		db.activityMeta.toArray()
 	]);
+	const bases = live(basesRaw);
+	const activities = live(activitiesRaw);
+	const days = live(daysRaw);
+	const placements = live(placementsRaw);
 	const activityIds = new Set(activities.map((a) => a.id));
 	const meta: Record<string, ActivityMeta> = {};
-	for (const m of metaRows) if (activityIds.has(m.activityId)) meta[m.activityId] = m;
+	for (const m of live(metaRaw)) if (activityIds.has(m.activityId)) meta[m.activityId] = m;
 	bases.sort((a, b) => a.sortOrder - b.sortOrder);
 	days.sort((a, b) => a.sortOrder - b.sortOrder);
 	return { trip, bases, activities, days, placements, meta };
@@ -105,18 +115,12 @@ export async function createTripWithDays(
 }
 
 // Edit a trip's destination/dates. Changing the range reconciles Day rows: days now
-// outside the range (and their placements) are removed, missing days are added, and all
+// outside the range (and their placements) are soft-deleted, missing days are added, and
 // surviving days keep their base + placements. sortOrder is renumbered chronologically.
-export interface TripUpdateResult {
-	trip: Trip;
-	removedDayIds: string[];
-	removedPlacementIds: string[];
-}
-
 export async function updateTripDetails(
 	id: string,
 	patch: { destination: string; startDate: string; endDate: string }
-): Promise<TripUpdateResult | null> {
+): Promise<Trip | null> {
 	const existing = await db.trips.get(id);
 	if (!existing) return null;
 	const now = Date.now();
@@ -124,19 +128,28 @@ export async function updateTripDetails(
 
 	const desiredDates = datesInRange(patch.startDate, patch.endDate);
 	const desiredSet = new Set(desiredDates);
-	const existingDays = await db.days.where('tripId').equals(id).toArray();
+	const existingDays = live(await db.days.where('tripId').equals(id).toArray());
 	const existingByDate = new Map(existingDays.map((d) => [d.date, d]));
 
+	// Days now outside the range → tombstone them and their placements.
 	const removedDayIds = existingDays.filter((d) => !desiredSet.has(d.date)).map((d) => d.id);
-	const removedPlacementKeys = removedDayIds.length
-		? ((await db.placements.where('dayId').anyOf(removedDayIds).primaryKeys()) as string[])
+	const removedPlacements = removedDayIds.length
+		? live(await db.placements.where('dayId').anyOf(removedDayIds).toArray())
 		: [];
+	const tombstonedDays: Day[] = existingDays
+		.filter((d) => !desiredSet.has(d.date))
+		.map((d) => ({ ...d, updatedAt: now, deletedAt: now }));
+	const tombstonedPlacements: Placement[] = removedPlacements.map((p) => ({
+		...p,
+		updatedAt: now,
+		deletedAt: now
+	}));
 
-	const bases = await db.bases.where('tripId').equals(id).toArray();
+	const bases = live(await db.bases.where('tripId').equals(id).toArray());
 	bases.sort((a, b) => a.sortOrder - b.sortOrder);
 	const firstBaseId = bases[0]?.id ?? null;
 
-	// Final day set in chronological order — reuse existing rows, create the new ones.
+	// Surviving + new days in chronological order — reuse existing rows, create the rest.
 	const finalDays: Day[] = desiredDates.map((date, i) => {
 		const ex = existingByDate.get(date);
 		return ex
@@ -146,31 +159,41 @@ export async function updateTripDetails(
 
 	await db.transaction('rw', db.trips, db.days, db.placements, async () => {
 		await db.trips.put(updated);
-		if (removedDayIds.length) await db.days.bulkDelete(removedDayIds);
-		if (removedPlacementKeys.length) await db.placements.bulkDelete(removedPlacementKeys);
+		if (tombstonedDays.length) await db.days.bulkPut(tombstonedDays);
+		if (tombstonedPlacements.length) await db.placements.bulkPut(tombstonedPlacements);
 		if (finalDays.length) await db.days.bulkPut(finalDays);
 	});
-	return { trip: updated, removedDayIds, removedPlacementIds: removedPlacementKeys };
+	return updated;
 }
 
 export async function deleteTrip(tripId: string): Promise<void> {
-	const activities = await db.activities.where('tripId').equals(tripId).toArray();
-	const [baseKeys, activityKeys, dayKeys, placementKeys] = await Promise.all([
-		db.bases.where('tripId').equals(tripId).primaryKeys(),
-		db.activities.where('tripId').equals(tripId).primaryKeys(),
-		db.days.where('tripId').equals(tripId).primaryKeys(),
-		db.placements.where('tripId').equals(tripId).primaryKeys()
+	const now = Date.now();
+	const tomb = <T extends { updatedAt: number; deletedAt?: number }>(r: T): T => ({
+		...r,
+		updatedAt: now,
+		deletedAt: now
+	});
+	const [trip, tripBases, tripActivities, tripDays, tripPlacements] = await Promise.all([
+		db.trips.get(tripId),
+		db.bases.where('tripId').equals(tripId).toArray(),
+		db.activities.where('tripId').equals(tripId).toArray(),
+		db.days.where('tripId').equals(tripId).toArray(),
+		db.placements.where('tripId').equals(tripId).toArray()
 	]);
+	const activityIds = tripActivities.map((a) => a.id);
+	const metaRows = activityIds.length
+		? await db.activityMeta.where('activityId').anyOf(activityIds).toArray()
+		: [];
 	await db.transaction(
 		'rw',
 		[db.trips, db.bases, db.activities, db.days, db.placements, db.activityMeta],
 		async () => {
-			await db.trips.delete(tripId);
-			await db.bases.bulkDelete(baseKeys as string[]);
-			await db.activities.bulkDelete(activityKeys as string[]);
-			await db.days.bulkDelete(dayKeys as string[]);
-			await db.placements.bulkDelete(placementKeys as string[]);
-			await db.activityMeta.bulkDelete(activities.map((a) => a.id));
+			if (trip) await db.trips.put(tomb(trip));
+			await db.bases.bulkPut(tripBases.map(tomb));
+			await db.activities.bulkPut(tripActivities.map(tomb));
+			await db.days.bulkPut(tripDays.map(tomb));
+			await db.placements.bulkPut(tripPlacements.map(tomb));
+			await db.activityMeta.bulkPut(metaRows.map(tomb));
 		}
 	);
 }
@@ -198,11 +221,17 @@ export async function updateActivity(
 }
 
 export async function deleteActivity(id: string): Promise<void> {
-	const placementKeys = await db.placements.where('activityId').equals(id).primaryKeys();
+	const now = Date.now();
+	const [activity, placements, meta] = await Promise.all([
+		db.activities.get(id),
+		db.placements.where('activityId').equals(id).toArray(),
+		db.activityMeta.get(id)
+	]);
 	await db.transaction('rw', db.activities, db.placements, db.activityMeta, async () => {
-		await db.activities.delete(id);
-		await db.placements.bulkDelete(placementKeys as string[]);
-		await db.activityMeta.delete(id);
+		if (activity) await db.activities.put({ ...activity, updatedAt: now, deletedAt: now });
+		if (placements.length)
+			await db.placements.bulkPut(placements.map((p) => ({ ...p, updatedAt: now, deletedAt: now })));
+		if (meta) await db.activityMeta.put({ ...meta, updatedAt: now, deletedAt: now });
 	});
 }
 
@@ -227,16 +256,16 @@ export async function addBase(
 }
 
 export async function removeBase(tripId: string, baseId: string): Promise<void> {
-	const allBases = await db.bases.where('tripId').equals(tripId).toArray();
+	const allBases = live(await db.bases.where('tripId').equals(tripId).toArray());
+	const target = allBases.find((b) => b.id === baseId);
 	const remaining = allBases.filter((b) => b.id !== baseId).sort((a, b) => a.sortOrder - b.sortOrder);
 	const fallbackId = remaining[0]?.id ?? null;
-	const affectedDays = await db.days
-		.where('tripId').equals(tripId)
-		.filter((d) => d.baseId === baseId)
-		.toArray();
+	const affectedDays = live(await db.days.where('tripId').equals(tripId).toArray()).filter(
+		(d) => d.baseId === baseId
+	);
 	const now = Date.now();
 	await db.transaction('rw', db.bases, db.days, async () => {
-		await db.bases.delete(baseId);
+		if (target) await db.bases.put({ ...target, updatedAt: now, deletedAt: now });
 		await db.days.bulkPut(affectedDays.map((d) => ({ ...d, baseId: fallbackId, updatedAt: now })));
 	});
 }
