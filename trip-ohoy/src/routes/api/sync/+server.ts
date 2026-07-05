@@ -9,7 +9,7 @@ import {
 	placements,
 	activityMeta
 } from '$lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { Activity, ActivityMeta, Base, Day, Link, Placement, Trip } from '$lib/types';
 
 interface SyncPayload {
@@ -21,6 +21,11 @@ interface SyncPayload {
 		days?: Day[];
 		placements?: Placement[];
 		activityMeta?: ActivityMeta[];
+	};
+	// Ids the client has deleted (no tombstones yet — see the store's sync()).
+	del?: {
+		days?: string[];
+		placements?: string[];
 	};
 }
 
@@ -156,7 +161,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		error(400, 'Invalid JSON');
 	}
 
-	const { tripId, push } = body;
+	const { tripId, push, del } = body;
 	if (!tripId) error(400, 'tripId required');
 
 	// Push client records to server (LWW)
@@ -168,6 +173,16 @@ export const POST: RequestHandler = async ({ request }) => {
 		upsertPlacements(push.placements ?? []),
 		upsertActivityMeta(push.activityMeta ?? [])
 	]);
+
+	// Apply explicit deletes, scoped to this trip. Placements first (they hang off days).
+	if (del?.placements?.length) {
+		await db
+			.delete(placements)
+			.where(and(eq(placements.tripId, tripId), inArray(placements.id, del.placements)));
+	}
+	if (del?.days?.length) {
+		await db.delete(days).where(and(eq(days.tripId, tripId), inArray(days.id, del.days)));
+	}
 
 	// Return current server state for this trip
 	const [tripsData, basesData, activitiesData, daysData, placementsData] = await Promise.all([

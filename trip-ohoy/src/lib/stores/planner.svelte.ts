@@ -11,6 +11,7 @@ import {
 	createActivity as dbCreateActivity,
 	updateActivity as dbUpdateActivity,
 	deleteActivity as dbDeleteActivity,
+	updateTripDetails as dbUpdateTripDetails,
 	addBase as dbAddBase,
 	removeBase as dbRemoveBase
 } from '$lib/data/local';
@@ -62,6 +63,7 @@ export class PlannerStore {
 	// 'closed' | 'create' | activityId (edit)
 	activityFormMode = $state<'closed' | 'create' | string>('closed');
 	basesOpen = $state(false);
+	editTripOpen = $state(false);
 	syncStatus = $state<SyncStatus>('idle');
 
 	async load(tripId: string) {
@@ -136,6 +138,25 @@ export class PlannerStore {
 	closeActivityForm = () => (this.activityFormMode = 'closed');
 	openBasesManager = () => (this.basesOpen = true);
 	closeBasesManager = () => (this.basesOpen = false);
+	openEditTrip = () => (this.editTripOpen = true);
+	closeEditTrip = () => (this.editTripOpen = false);
+
+	async updateTrip(patch: { destination: string; startDate: string; endDate: string }) {
+		if (!this.trip) return;
+		const result = await dbUpdateTripDetails(this.trip.id, patch);
+		if (!result) return;
+		// Dates may have added/removed days — reload the whole graph to refresh state.
+		const g = await loadTripGraph(this.trip.id);
+		if (g) {
+			this.apply(g);
+			if (!this.days.some((d) => d.id === this.selectedDayId)) {
+				this.selectedDayId = this.days[0]?.id ?? null;
+			}
+		}
+		this.closeEditTrip();
+		// Propagate the day/placement removals so the server doesn't resurrect them on sync.
+		this.sync({ days: result.removedDayIds, placements: result.removedPlacementIds });
+	}
 
 	// ── Mutations (state + write-through) ───────────────────────────────────────
 	async addActivity(dayId: string, activityId: string) {
@@ -218,7 +239,9 @@ export class PlannerStore {
 	}
 
 	// ── Cloud sync ──────────────────────────────────────────────────────────────
-	async sync() {
+	// `del` carries ids the client has deleted so the server removes them too — without
+	// tombstones, the server would otherwise send them back and the merge would resurrect.
+	async sync(del?: { days?: string[]; placements?: string[] }) {
 		if (!this.trip) return;
 		this.syncStatus = 'syncing';
 		try {
@@ -234,7 +257,8 @@ export class PlannerStore {
 						days: $state.snapshot(this.days),
 						placements: $state.snapshot(this.placements),
 						activityMeta: Object.values($state.snapshot(this.meta))
-					}
+					},
+					del: del && (del.days?.length || del.placements?.length) ? del : undefined
 				})
 			});
 			if (!res.ok) throw new Error('sync failed');
