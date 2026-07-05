@@ -99,6 +99,7 @@
 	.page {
 		min-height: 100vh;
 		background: var(--page-bg);
+		overflow-x: clip;
 	}
 	header {
 		display: flex;
@@ -166,7 +167,7 @@
 	}
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
 		gap: 20px;
 	}
 	.card {
@@ -244,5 +245,17 @@
 		border: 1px solid oklch(0.91 0.01 85);
 		border-radius: var(--r-chip);
 		padding: 3px 10px;
+	}
+
+	@media (max-width: 640px) {
+		header {
+			padding: 16px 16px;
+		}
+		main {
+			padding: 24px 16px 40px;
+		}
+		.grid {
+			gap: 16px;
+		}
 	}
 </style>

@@ -53,6 +53,7 @@
 			</div>
 			<EnergyMeta
 				energy={activity.energy}
+				durationLabel={activity.durationLabel}
 				text={`${cat.label} · ${activity.durationLabel} · ${activity.energy}`}
 			/>
 			{#if hasBadges}<div class="badges-pad"><Badges {activity} /></div>{/if}
@@ -80,6 +81,7 @@
 		border: 1px solid var(--border);
 		border-radius: 10px;
 		padding: 12px;
+		max-width: 100%;
 		cursor: pointer;
 		transition:
 			transform 0.12s,

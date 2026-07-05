@@ -28,6 +28,16 @@ export function energyColor(energy: Energy): string {
 	return ENERGY_COLOR[energy] ?? 'oklch(0.7 0 0)';
 }
 
+// Rough visual weight of an activity by how much of a day it fills — drives card height so
+// a full-day outing reads as bigger than a one-hour errand. Falls back to 'short'.
+export type DurationWeight = 'short' | 'medium' | 'long';
+export function durationWeight(durationLabel: string): DurationWeight {
+	const l = durationLabel.toLowerCase();
+	if (l.includes('full')) return 'long';
+	if (l.includes('half')) return 'medium';
+	return 'short';
+}
+
 // Mood of a day given the energies of its placed activities (any High → Active,
 // else any Medium → Balanced, else Calm). Empty day → null.
 export function moodOf(energies: Energy[]): Mood | null {

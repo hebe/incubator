@@ -29,7 +29,7 @@
 	<span class="emoji">{activity.emoji}</span>
 	<div class="body">
 		<div class="name-line"><span class="name">{activity.name}</span><span class="chevron">›</span></div>
-		<EnergyMeta energy={activity.energy} text={`${activity.durationLabel} · ${activity.energy}`} size="md" />
+		<EnergyMeta energy={activity.energy} durationLabel={activity.durationLabel} text={`${activity.durationLabel} · ${activity.energy}`} size="md" />
 		{#if hasBadges}<div class="badges-pad"><Badges {activity} size="md" /></div>{/if}
 	</div>
 	<button class="x" title={t.remove} onclick={onremove}>×</button>
@@ -40,6 +40,7 @@
 		display: flex;
 		align-items: flex-start;
 		gap: 12px;
+		max-width: 100%;
 		background: var(--surface);
 		border: 1px solid var(--border);
 		border-radius: var(--r-card);

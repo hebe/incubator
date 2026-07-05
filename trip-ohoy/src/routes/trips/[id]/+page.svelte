@@ -169,6 +169,11 @@
 {/if}
 
 <style>
+	/* clip (not hidden) kills any horizontal bleed without creating a scroll container,
+	   so the sticky header and the board's own horizontal scroll both keep working. */
+	.app {
+		overflow-x: clip;
+	}
 	header {
 		display: flex;
 		align-items: center;
@@ -376,7 +381,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 10px;
+		gap: 8px 10px;
+		flex-wrap: wrap;
 		padding-bottom: 9px;
 		border-bottom: 2px solid oklch(0.91 0.01 85);
 	}
@@ -399,6 +405,8 @@
 		display: flex;
 		align-items: center;
 		gap: 6px;
+		flex-wrap: wrap;
+		min-width: 0;
 	}
 	.day-meta .car {
 		font-size: 14px;
@@ -425,5 +433,28 @@
 		border-radius: 10px;
 		padding: 11px;
 		cursor: pointer;
+	}
+
+	/* ── Mobile: tighten horizontal padding so nothing is cut off on narrow screens ── */
+	@media (max-width: 640px) {
+		header {
+			padding: 14px 16px;
+			gap: 12px;
+		}
+		.hint {
+			padding: 14px 16px 4px;
+		}
+		.columns {
+			padding: 12px 16px 22px;
+		}
+		.bank {
+			padding: 16px 16px 28px;
+		}
+		.bank-grid {
+			grid-template-columns: 1fr;
+		}
+		.list-view {
+			padding: 6px 14px 44px;
+		}
 	}
 </style>

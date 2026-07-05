@@ -30,7 +30,7 @@
 		<span class="emoji">{activity.emoji}</span>
 		<div class="body">
 			<div class="name">{activity.name}</div>
-			<EnergyMeta energy={activity.energy} text={`${activity.durationLabel} · ${activity.energy}`} />
+			<EnergyMeta energy={activity.energy} durationLabel={activity.durationLabel} text={`${activity.durationLabel} · ${activity.energy}`} />
 		</div>
 		<span class="chevron">›</span>
 		<button class="x" title={t.remove} onclick={onremove}>×</button>
