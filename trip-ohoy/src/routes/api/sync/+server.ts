@@ -141,6 +141,13 @@ async function upsertActivityMeta(rows: ActivityMeta[]) {
 		});
 }
 
+// List all trips (single-user app → the whole table). Used by the home page so trips
+// created on another device show up here even before they're opened.
+export const GET: RequestHandler = async () => {
+	const tripsData = await db.select().from(trips);
+	return json({ trips: tripsData });
+};
+
 export const POST: RequestHandler = async ({ request }) => {
 	let body: SyncPayload;
 	try {
