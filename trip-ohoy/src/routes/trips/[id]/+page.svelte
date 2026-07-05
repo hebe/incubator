@@ -90,10 +90,8 @@
 							activity={a}
 							used={!a.reusable && used.has(a.id)}
 							onadd={() => store.selectedDayId && store.addActivity(store.selectedDayId, a.id)}
-							onopendetail={(e) => {
-								e.stopPropagation();
-								store.openDetail(a.id);
-							}}
+							onopendetail={(e) => { e.stopPropagation(); store.openDetail(a.id); }}
+							ontoggleconfirmed={(e) => { e.stopPropagation(); store.toggleConfirmed(a.id); }}
 						/>
 					{/each}
 				</div>

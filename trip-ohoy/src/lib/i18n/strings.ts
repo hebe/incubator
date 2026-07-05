@@ -32,6 +32,7 @@ export const en = {
 	weatherLabel: 'Weather',
 	needsCarLabel: 'Needs a car',
 	reusableLabel2: 'Reusable',
+	confirmedLabel: 'Definite',
 	placeLabelField: 'Place name',
 	locationLabel: 'Location',
 	saveActivity: 'Save activity',

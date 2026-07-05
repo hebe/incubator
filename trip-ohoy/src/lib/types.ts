@@ -35,6 +35,7 @@ export interface Activity {
 	weather: Weather;
 	needsCar: boolean;
 	reusable: boolean;
+	confirmed: boolean;
 	placeLabel: string;
 	lat: number;
 	lng: number;
