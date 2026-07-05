@@ -72,19 +72,19 @@
 		<div class="scroll">
 			<!-- Destination -->
 			<div class="field">
-				<label class="lbl">{t.destinationLabel}</label>
-				<input class="in" bind:value={destination} placeholder={t.destinationPlaceholder} />
+				<label class="lbl" for="tf-dest">{t.destinationLabel}</label>
+				<input id="tf-dest" class="in" bind:value={destination} placeholder={t.destinationPlaceholder} />
 			</div>
 
 			<!-- Dates -->
 			<div class="row">
 				<div class="field grow">
-					<label class="lbl">{t.departureDateLabel}</label>
-					<input class="in" type="date" bind:value={startDate} />
+					<label class="lbl" for="tf-start">{t.departureDateLabel}</label>
+					<input id="tf-start" class="in" type="date" bind:value={startDate} />
 				</div>
 				<div class="field grow">
-					<label class="lbl">{t.returnDateLabel}</label>
-					<input class="in" type="date" bind:value={endDate} min={startDate} />
+					<label class="lbl" for="tf-end">{t.returnDateLabel}</label>
+					<input id="tf-end" class="in" type="date" bind:value={endDate} min={startDate} />
 				</div>
 				{#if dayCount > 0}
 					<div class="day-count">{t.days(dayCount)}</div>
@@ -93,7 +93,7 @@
 
 			<!-- Bases -->
 			<div class="field">
-				<label class="lbl">{t.basesLabel}</label>
+				<div class="lbl">{t.basesLabel}</div>
 				<div class="bases-list">
 					{#each bases as base (base._id)}
 						<div class="base-row">

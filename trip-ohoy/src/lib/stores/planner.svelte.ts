@@ -16,6 +16,29 @@ import {
 } from '$lib/data/local';
 import { normalizeLink } from '$lib/data/derive';
 
+type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
+
+function mergeById<T extends { id: string; updatedAt: number }>(local: T[], server: T[]): T[] {
+	const map = new Map(local.map((r) => [r.id, r]));
+	for (const sv of server) {
+		const lc = map.get(sv.id);
+		map.set(sv.id, !lc || sv.updatedAt > lc.updatedAt ? sv : lc);
+	}
+	return [...map.values()];
+}
+
+function mergeMetaById(
+	local: Record<string, ActivityMeta>,
+	server: ActivityMeta[]
+): Record<string, ActivityMeta> {
+	const result = { ...local };
+	for (const sv of server) {
+		const lc = local[sv.activityId];
+		if (!lc || sv.updatedAt > lc.updatedAt) result[sv.activityId] = sv;
+	}
+	return result;
+}
+
 type Filter = CategoryKey | 'all';
 type View = 'board' | 'list';
 
@@ -39,6 +62,7 @@ export class PlannerStore {
 	// 'closed' | 'create' | activityId (edit)
 	activityFormMode = $state<'closed' | 'create' | string>('closed');
 	basesOpen = $state(false);
+	syncStatus = $state<SyncStatus>('idle');
 
 	async load(tripId: string) {
 		const g = await loadTripGraph(tripId);
@@ -46,6 +70,7 @@ export class PlannerStore {
 		this.apply(g);
 		this.selectedDayId = g.days[0]?.id ?? null;
 		this.loaded = true;
+		this.sync();
 	}
 
 	private apply(g: TripGraph) {
@@ -190,6 +215,60 @@ export class PlannerStore {
 		this.meta = meta;
 		if (this.detailActivityId === id) this.closeDetail();
 		this.closeActivityForm();
+	}
+
+	// ── Cloud sync ──────────────────────────────────────────────────────────────
+	async sync() {
+		if (!this.trip) return;
+		this.syncStatus = 'syncing';
+		try {
+			const res = await fetch('/api/sync', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					tripId: this.trip.id,
+					push: {
+						trips: [this.trip],
+						bases: $state.snapshot(this.bases),
+						activities: $state.snapshot(this.activities),
+						days: $state.snapshot(this.days),
+						placements: $state.snapshot(this.placements),
+						activityMeta: Object.values($state.snapshot(this.meta))
+					}
+				})
+			});
+			if (!res.ok) throw new Error('sync failed');
+			const server = await res.json();
+
+			// Merge server response — take newer record per item (LWW on client)
+			const mergedBases = mergeById(this.bases, server.bases as Base[]);
+			const mergedActivities = mergeById(this.activities, server.activities as Activity[]);
+			const mergedDays = mergeById(this.days, server.days as Day[]);
+			const mergedPlacements = mergeById(this.placements, server.placements as Placement[]);
+			const mergedMeta = mergeMetaById(this.meta, server.activityMeta as ActivityMeta[]);
+
+			if (server.trips?.[0] && server.trips[0].updatedAt > (this.trip?.updatedAt ?? 0)) {
+				this.trip = server.trips[0];
+				await db.trips.put($state.snapshot(server.trips[0]));
+			}
+			this.bases = mergedBases;
+			this.activities = mergedActivities;
+			this.days = mergedDays;
+			this.placements = mergedPlacements;
+			this.meta = mergedMeta;
+
+			await Promise.all([
+				db.bases.bulkPut(mergedBases.map((r) => $state.snapshot(r))),
+				db.activities.bulkPut(mergedActivities.map((r) => $state.snapshot(r))),
+				db.days.bulkPut(mergedDays.map((r) => $state.snapshot(r))),
+				db.placements.bulkPut(mergedPlacements.map((r) => $state.snapshot(r))),
+				db.activityMeta.bulkPut(Object.values(mergedMeta).map((r) => $state.snapshot(r)))
+			]);
+
+			this.syncStatus = 'synced';
+		} catch {
+			this.syncStatus = 'error';
+		}
 	}
 
 	// ── Base CRUD ───────────────────────────────────────────────────────────────
