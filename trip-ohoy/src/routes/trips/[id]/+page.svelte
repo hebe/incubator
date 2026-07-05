@@ -15,6 +15,7 @@
 	import DetailModal from '$lib/components/DetailModal.svelte';
 	import ActivityForm from '$lib/components/ActivityForm.svelte';
 	import BasesModal from '$lib/components/BasesModal.svelte';
+	import EditTripModal from '$lib/components/EditTripModal.svelte';
 
 	const store = new PlannerStore();
 
@@ -41,6 +42,7 @@
 					<div class="wordmark">{trip.destination.toUpperCase()}</div>
 					<div class="subtitle">
 						{rangeSubtitle(trip.startDate, trip.endDate)}
+						<button class="bases-btn" onclick={store.openEditTrip}>edit</button>
 						<button class="bases-btn" onclick={store.openBasesManager}>bases</button>
 					</div>
 				</div>
@@ -157,6 +159,11 @@
 		{/if}
 		{#if store.basesOpen}
 			<BasesModal {store} />
+		{/if}
+		{#if store.editTripOpen}
+			{#key trip.id}
+				<EditTripModal {store} />
+			{/key}
 		{/if}
 	</div>
 {/if}

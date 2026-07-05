@@ -19,6 +19,10 @@ export const en = {
 	addBase: '+ Add base',
 	basePlaceholder: 'e.g. Grand Baie',
 	createTrip: 'Create trip',
+	// EditTripModal
+	editTripTitle: 'Edit trip',
+	editTripDatesNote: 'Changing the dates adds or removes day columns. Days you keep hold on to their plans.',
+	saveChanges: 'Save changes',
 	// ActivityForm
 	newActivityTitle: 'New activity',
 	editActivityTitle: 'Edit activity',

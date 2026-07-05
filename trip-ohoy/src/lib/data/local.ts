@@ -104,6 +104,55 @@ export async function createTripWithDays(
 	return trip;
 }
 
+// Edit a trip's destination/dates. Changing the range reconciles Day rows: days now
+// outside the range (and their placements) are removed, missing days are added, and all
+// surviving days keep their base + placements. sortOrder is renumbered chronologically.
+export interface TripUpdateResult {
+	trip: Trip;
+	removedDayIds: string[];
+	removedPlacementIds: string[];
+}
+
+export async function updateTripDetails(
+	id: string,
+	patch: { destination: string; startDate: string; endDate: string }
+): Promise<TripUpdateResult | null> {
+	const existing = await db.trips.get(id);
+	if (!existing) return null;
+	const now = Date.now();
+	const updated: Trip = { ...existing, ...patch, updatedAt: now };
+
+	const desiredDates = datesInRange(patch.startDate, patch.endDate);
+	const desiredSet = new Set(desiredDates);
+	const existingDays = await db.days.where('tripId').equals(id).toArray();
+	const existingByDate = new Map(existingDays.map((d) => [d.date, d]));
+
+	const removedDayIds = existingDays.filter((d) => !desiredSet.has(d.date)).map((d) => d.id);
+	const removedPlacementKeys = removedDayIds.length
+		? ((await db.placements.where('dayId').anyOf(removedDayIds).primaryKeys()) as string[])
+		: [];
+
+	const bases = await db.bases.where('tripId').equals(id).toArray();
+	bases.sort((a, b) => a.sortOrder - b.sortOrder);
+	const firstBaseId = bases[0]?.id ?? null;
+
+	// Final day set in chronological order — reuse existing rows, create the new ones.
+	const finalDays: Day[] = desiredDates.map((date, i) => {
+		const ex = existingByDate.get(date);
+		return ex
+			? { ...ex, sortOrder: i, updatedAt: now }
+			: { id: uid(), tripId: id, date, baseId: firstBaseId, sortOrder: i, updatedAt: now };
+	});
+
+	await db.transaction('rw', db.trips, db.days, db.placements, async () => {
+		await db.trips.put(updated);
+		if (removedDayIds.length) await db.days.bulkDelete(removedDayIds);
+		if (removedPlacementKeys.length) await db.placements.bulkDelete(removedPlacementKeys);
+		if (finalDays.length) await db.days.bulkPut(finalDays);
+	});
+	return { trip: updated, removedDayIds, removedPlacementIds: removedPlacementKeys };
+}
+
 export async function deleteTrip(tripId: string): Promise<void> {
 	const activities = await db.activities.where('tripId').equals(tripId).toArray();
 	const [baseKeys, activityKeys, dayKeys, placementKeys] = await Promise.all([
