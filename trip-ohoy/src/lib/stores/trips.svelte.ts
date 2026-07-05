@@ -12,6 +12,32 @@ export class TripsStore {
 		const all = await db.trips.toArray();
 		this.trips = all.sort((a, b) => a.createdAt - b.createdAt);
 		this.loaded = true;
+		this.pullRemote();
+	}
+
+	// Pull the trip list from the server and LWW-merge by updatedAt, so trips created on
+	// another device appear here. Only trip rows — each trip's full graph syncs on open.
+	private async pullRemote() {
+		try {
+			const res = await fetch('/api/sync');
+			if (!res.ok) return;
+			const { trips: remote } = (await res.json()) as { trips: Trip[] };
+			const byId = new Map(this.trips.map((t) => [t.id, t]));
+			const winners: Trip[] = [];
+			for (const sv of remote) {
+				const lc = byId.get(sv.id);
+				if (!lc || sv.updatedAt > lc.updatedAt) {
+					byId.set(sv.id, sv);
+					winners.push(sv);
+				}
+			}
+			if (winners.length) {
+				await db.trips.bulkPut(winners);
+				this.trips = [...byId.values()].sort((a, b) => a.createdAt - b.createdAt);
+			}
+		} catch {
+			// offline / server unreachable — local list stands
+		}
 	}
 
 	async create(
