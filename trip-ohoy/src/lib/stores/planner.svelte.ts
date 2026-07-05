@@ -19,6 +19,8 @@ import { normalizeLink } from '$lib/data/derive';
 
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
+// LWW merge by updatedAt. Tombstones (deletedAt set) participate like any other row — a
+// newer tombstone wins over a live row, which is how deletions propagate across devices.
 function mergeById<T extends { id: string; updatedAt: number }>(local: T[], server: T[]): T[] {
 	const map = new Map(local.map((r) => [r.id, r]));
 	for (const sv of server) {
@@ -26,6 +28,11 @@ function mergeById<T extends { id: string; updatedAt: number }>(local: T[], serv
 		map.set(sv.id, !lc || sv.updatedAt > lc.updatedAt ? sv : lc);
 	}
 	return [...map.values()];
+}
+
+// Keep tombstones in Dexie (they must keep propagating) but never in reactive/UI state.
+function live<T extends { deletedAt?: number }>(rows: T[]): T[] {
+	return rows.filter((r) => !r.deletedAt);
 }
 
 function mergeMetaById(
@@ -143,8 +150,8 @@ export class PlannerStore {
 
 	async updateTrip(patch: { destination: string; startDate: string; endDate: string }) {
 		if (!this.trip) return;
-		const result = await dbUpdateTripDetails(this.trip.id, patch);
-		if (!result) return;
+		const updated = await dbUpdateTripDetails(this.trip.id, patch);
+		if (!updated) return;
 		// Dates may have added/removed days — reload the whole graph to refresh state.
 		const g = await loadTripGraph(this.trip.id);
 		if (g) {
@@ -154,8 +161,8 @@ export class PlannerStore {
 			}
 		}
 		this.closeEditTrip();
-		// Propagate the day/placement removals so the server doesn't resurrect them on sync.
-		this.sync({ days: result.removedDayIds, placements: result.removedPlacementIds });
+		// Removed days/placements are tombstoned in Dexie; sync propagates them.
+		this.sync();
 	}
 
 	// ── Mutations (state + write-through) ───────────────────────────────────────
@@ -170,8 +177,11 @@ export class PlannerStore {
 	}
 
 	async removePlacement(placementId: string) {
+		const existing = this.placements.find((p) => p.id === placementId);
 		this.placements = this.placements.filter((p) => p.id !== placementId);
-		await db.placements.delete(placementId);
+		if (existing) {
+			await db.placements.put({ ...$state.snapshot(existing), updatedAt: Date.now(), deletedAt: Date.now() });
+		}
 	}
 
 	async cycleBase(dayId: string) {
@@ -239,47 +249,64 @@ export class PlannerStore {
 	}
 
 	// ── Cloud sync ──────────────────────────────────────────────────────────────
-	// `del` carries ids the client has deleted so the server removes them too — without
-	// tombstones, the server would otherwise send them back and the merge would resurrect.
-	async sync(del?: { days?: string[]; placements?: string[] }) {
+	// Pushes the full local trip graph *including tombstones* (read raw from Dexie, since
+	// reactive state is live-only) and LWW-merges the reply. Deletions ride along as
+	// tombstones — no separate delete path.
+	async sync() {
 		if (!this.trip) return;
+		const tripId = this.trip.id;
 		this.syncStatus = 'syncing';
 		try {
+			const [rawBases, rawActivities, rawDays, rawPlacements, allMeta] = await Promise.all([
+				db.bases.where('tripId').equals(tripId).toArray(),
+				db.activities.where('tripId').equals(tripId).toArray(),
+				db.days.where('tripId').equals(tripId).toArray(),
+				db.placements.where('tripId').equals(tripId).toArray(),
+				db.activityMeta.toArray()
+			]);
+			// activity_meta isn't trip-scoped in Dexie — narrow it to this trip's activities.
+			const tripActivityIds = new Set(rawActivities.map((a) => a.id));
+			const rawMeta = allMeta.filter((m) => tripActivityIds.has(m.activityId));
+
 			const res = await fetch('/api/sync', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					tripId: this.trip.id,
+					tripId,
 					push: {
-						trips: [this.trip],
-						bases: $state.snapshot(this.bases),
-						activities: $state.snapshot(this.activities),
-						days: $state.snapshot(this.days),
-						placements: $state.snapshot(this.placements),
-						activityMeta: Object.values($state.snapshot(this.meta))
-					},
-					del: del && (del.days?.length || del.placements?.length) ? del : undefined
+						trips: [$state.snapshot(this.trip)],
+						bases: rawBases,
+						activities: rawActivities,
+						days: rawDays,
+						placements: rawPlacements,
+						activityMeta: rawMeta
+					}
 				})
 			});
 			if (!res.ok) throw new Error('sync failed');
 			const server = await res.json();
 
-			// Merge server response — take newer record per item (LWW on client)
-			const mergedBases = mergeById(this.bases, server.bases as Base[]);
-			const mergedActivities = mergeById(this.activities, server.activities as Activity[]);
-			const mergedDays = mergeById(this.days, server.days as Day[]);
-			const mergedPlacements = mergeById(this.placements, server.placements as Placement[]);
-			const mergedMeta = mergeMetaById(this.meta, server.activityMeta as ActivityMeta[]);
+			// Merge server response against the raw local set (tombstones included) — LWW.
+			const mergedBases = mergeById(rawBases, server.bases as Base[]);
+			const mergedActivities = mergeById(rawActivities, server.activities as Activity[]);
+			const mergedDays = mergeById(rawDays, server.days as Day[]);
+			const mergedPlacements = mergeById(rawPlacements, server.placements as Placement[]);
+			const localMetaRecord = Object.fromEntries(rawMeta.map((m) => [m.activityId, m]));
+			const mergedMeta = mergeMetaById(localMetaRecord, server.activityMeta as ActivityMeta[]);
 
 			if (server.trips?.[0] && server.trips[0].updatedAt > (this.trip?.updatedAt ?? 0)) {
 				this.trip = server.trips[0];
 				await db.trips.put($state.snapshot(server.trips[0]));
 			}
-			this.bases = mergedBases;
-			this.activities = mergedActivities;
-			this.days = mergedDays;
-			this.placements = mergedPlacements;
-			this.meta = mergedMeta;
+			// Reactive state shows only live rows; Dexie keeps the tombstones so the
+			// deletions keep syncing until every device has seen them.
+			this.bases = live(mergedBases);
+			this.activities = live(mergedActivities);
+			this.days = live(mergedDays);
+			this.placements = live(mergedPlacements);
+			this.meta = Object.fromEntries(
+				Object.entries(mergedMeta).filter(([, m]) => !m.deletedAt)
+			);
 
 			await Promise.all([
 				db.bases.bulkPut(mergedBases.map((r) => $state.snapshot(r))),
