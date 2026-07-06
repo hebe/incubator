@@ -15,7 +15,7 @@ import {
 	addBase as dbAddBase,
 	removeBase as dbRemoveBase
 } from '$lib/data/local';
-import { normalizeLink } from '$lib/data/derive';
+import { normalizeLink, durationWeight, type DurationWeight } from '$lib/data/derive';
 
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
@@ -48,6 +48,7 @@ function mergeMetaById(
 }
 
 type Filter = CategoryKey | 'all';
+type LengthFilter = DurationWeight | 'all';
 type View = 'board' | 'list';
 
 export class PlannerStore {
@@ -60,6 +61,7 @@ export class PlannerStore {
 
 	view = $state<View>('board');
 	filter = $state<Filter>('all');
+	lengthFilter = $state<LengthFilter>('all');
 	selectedDayId = $state<string | null>(null);
 	dragOverDayId = $state<string | null>(null);
 	pickerDayId = $state<string | null>(null);
@@ -113,7 +115,11 @@ export class PlannerStore {
 			.sort((a, b) => a.sortOrder - b.sortOrder);
 	}
 	get bankActivities(): Activity[] {
-		return this.activities.filter((a) => this.filter === 'all' || a.category === this.filter);
+		return this.activities.filter(
+			(a) =>
+				(this.filter === 'all' || a.category === this.filter) &&
+				(this.lengthFilter === 'all' || durationWeight(a.durationLabel) === this.lengthFilter)
+		);
 	}
 	get summary(): { planned: number; carDays: number } {
 		const byId = this.activityById;
@@ -132,6 +138,7 @@ export class PlannerStore {
 	// ── View state ─────────────────────────────────────────────────────────────
 	setView = (v: View) => (this.view = v);
 	setFilter = (f: Filter) => (this.filter = f);
+	setLengthFilter = (f: LengthFilter) => (this.lengthFilter = f);
 	selectDay = (dayId: string) => (this.selectedDayId = dayId);
 	openPicker = (dayId: string) => (this.pickerDayId = dayId);
 	closePicker = () => (this.pickerDayId = null);

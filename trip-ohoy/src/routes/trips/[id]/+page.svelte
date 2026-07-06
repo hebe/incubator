@@ -8,6 +8,7 @@
 	import DayColumn from '$lib/components/DayColumn.svelte';
 	import BankCard from '$lib/components/BankCard.svelte';
 	import CategoryFilter from '$lib/components/CategoryFilter.svelte';
+	import LengthFilter from '$lib/components/LengthFilter.svelte';
 	import ListRow from '$lib/components/ListRow.svelte';
 	import BaseChip from '$lib/components/BaseChip.svelte';
 	import MoodChip from '$lib/components/MoodChip.svelte';
@@ -94,7 +95,10 @@
 						<button class="new-activity-btn" onclick={store.openNewActivity}>{t.newActivityBtn}</button>
 					</div>
 				</div>
-				<div class="bank-filter"><CategoryFilter filter={store.filter} onselect={store.setFilter} /></div>
+				<div class="bank-filter">
+					<CategoryFilter filter={store.filter} onselect={store.setFilter} />
+					<LengthFilter value={store.lengthFilter} onselect={store.setLengthFilter} />
+				</div>
 				<div class="bank-grid">
 					{#each store.bankActivities as a (a.id)}
 						<BankCard
@@ -362,6 +366,9 @@
 		max-width: 420px;
 	}
 	.bank-filter {
+		display: flex;
+		flex-direction: column;
+		gap: 9px;
 		margin-bottom: 15px;
 	}
 	.bank-grid {
