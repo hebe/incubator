@@ -8,6 +8,7 @@
 	import DayColumn from '$lib/components/DayColumn.svelte';
 	import BankCard from '$lib/components/BankCard.svelte';
 	import CategoryFilter from '$lib/components/CategoryFilter.svelte';
+	import LengthFilter from '$lib/components/LengthFilter.svelte';
 	import ListRow from '$lib/components/ListRow.svelte';
 	import BaseChip from '$lib/components/BaseChip.svelte';
 	import MoodChip from '$lib/components/MoodChip.svelte';
@@ -94,7 +95,10 @@
 						<button class="new-activity-btn" onclick={store.openNewActivity}>{t.newActivityBtn}</button>
 					</div>
 				</div>
-				<div class="bank-filter"><CategoryFilter filter={store.filter} onselect={store.setFilter} /></div>
+				<div class="bank-filter">
+					<CategoryFilter filter={store.filter} onselect={store.setFilter} />
+					<LengthFilter value={store.lengthFilter} onselect={store.setLengthFilter} />
+				</div>
 				<div class="bank-grid">
 					{#each store.bankActivities as a (a.id)}
 						<BankCard
@@ -169,6 +173,11 @@
 {/if}
 
 <style>
+	/* clip (not hidden) kills any horizontal bleed without creating a scroll container,
+	   so the sticky header and the board's own horizontal scroll both keep working. */
+	.app {
+		overflow-x: clip;
+	}
 	header {
 		display: flex;
 		align-items: center;
@@ -357,6 +366,9 @@
 		max-width: 420px;
 	}
 	.bank-filter {
+		display: flex;
+		flex-direction: column;
+		gap: 9px;
 		margin-bottom: 15px;
 	}
 	.bank-grid {
@@ -376,7 +388,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 10px;
+		gap: 8px 10px;
+		flex-wrap: wrap;
 		padding-bottom: 9px;
 		border-bottom: 2px solid oklch(0.91 0.01 85);
 	}
@@ -399,6 +412,8 @@
 		display: flex;
 		align-items: center;
 		gap: 6px;
+		flex-wrap: wrap;
+		min-width: 0;
 	}
 	.day-meta .car {
 		font-size: 14px;
@@ -425,5 +440,28 @@
 		border-radius: 10px;
 		padding: 11px;
 		cursor: pointer;
+	}
+
+	/* ── Mobile: tighten horizontal padding so nothing is cut off on narrow screens ── */
+	@media (max-width: 640px) {
+		header {
+			padding: 14px 16px;
+			gap: 12px;
+		}
+		.hint {
+			padding: 14px 16px 4px;
+		}
+		.columns {
+			padding: 12px 16px 22px;
+		}
+		.bank {
+			padding: 16px 16px 28px;
+		}
+		.bank-grid {
+			grid-template-columns: 1fr;
+		}
+		.list-view {
+			padding: 6px 14px 44px;
+		}
 	}
 </style>

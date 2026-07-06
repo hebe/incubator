@@ -71,6 +71,26 @@ button {
 	font-family: inherit;
 }
 
+/* Filter dropdowns (CategoryFilter / LengthFilter): hidden on wide screens where the chip
+   rows show, revealed on mobile where they save vertical space. */
+.filter-select {
+	display: none;
+}
+@media (max-width: 640px) {
+	.filter-select {
+		display: block;
+		width: 100%;
+		font-family: inherit;
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--text-2);
+		background: oklch(0.975 0.006 85);
+		border: 1px solid var(--border);
+		border-radius: var(--r-chip);
+		padding: 10px 12px;
+	}
+}
+
 ::-webkit-scrollbar {
 	height: 10px;
 	width: 9px;

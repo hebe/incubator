@@ -48,7 +48,7 @@
 								<span class="name">{a.name}</span>
 								{#if a.reusable}<span class="reuse" title={t.reusableTip}>↻</span>{/if}
 							</div>
-							<EnergyMeta energy={a.energy} text={`${cat.label} · ${a.durationLabel} · ${a.energy}`} />
+							<EnergyMeta energy={a.energy} durationLabel={a.durationLabel} text={`${cat.label} · ${a.durationLabel} · ${a.energy}`} />
 							<Badges activity={a} />
 						</div>
 						{#if isUsed}

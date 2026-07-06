@@ -12,6 +12,7 @@
 	]);
 </script>
 
+<!-- Chips on wide screens; a compact dropdown on mobile (swapped by CSS). -->
 <div class="chips">
 	{#each options as o (o.key)}
 		<button
@@ -24,12 +25,27 @@
 		</button>
 	{/each}
 </div>
+<select
+	class="filter-select"
+	aria-label="Filter by category"
+	value={filter}
+	onchange={(e) => onselect(e.currentTarget.value as Filter)}
+>
+	{#each options as o (o.key)}
+		<option value={o.key}>{o.label}</option>
+	{/each}
+</select>
 
 <style>
 	.chips {
 		display: flex;
 		gap: 7px;
 		flex-wrap: wrap;
+	}
+	@media (max-width: 640px) {
+		.chips {
+			display: none;
+		}
 	}
 	.chip {
 		display: inline-flex;

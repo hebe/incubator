@@ -136,7 +136,7 @@
 			<!-- Map picker -->
 			<div class="field">
 				<div class="lbl">{t.locationLabel}</div>
-				<MapPicker bind:lat bind:lng colorVar={catColorVar} />
+				<MapPicker bind:lat bind:lng colorVar={catColorVar} destination={store.trip?.destination} />
 			</div>
 		</div>
 

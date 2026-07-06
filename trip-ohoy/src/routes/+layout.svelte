@@ -82,6 +82,7 @@
 		justify-content: center;
 		background: var(--page-bg);
 		padding: 24px;
+		overflow-x: clip;
 	}
 	.box {
 		display: flex;
@@ -95,6 +96,14 @@
 		width: 100%;
 		max-width: 360px;
 		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+	}
+	@media (max-width: 480px) {
+		.gate {
+			padding: 20px;
+		}
+		.box {
+			padding: 40px 24px;
+		}
 	}
 	.logo {
 		font-size: 48px;

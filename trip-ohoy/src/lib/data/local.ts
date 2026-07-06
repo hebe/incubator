@@ -272,31 +272,36 @@ export async function removeBase(tripId: string, baseId: string): Promise<void> 
 
 // ── Seed ───────────────────────────────────────────────────────────────────
 
-// Seed the Mauritius trip on first run (M1 has no trip-creation UI yet).
-export async function seedIfEmpty(): Promise<string> {
-	const existing = await db.trips.get(SEED_TRIP.id);
-	if (existing) return SEED_TRIP.id;
+// Seed rows use *deterministic* ids (trip id + a natural key), so every device produces
+// the identical set and cloud sync dedupes by id. With random uids each device seeded
+// distinct rows for the same fixed-id trip, and sync merged them into 5× duplicates.
+// Activities already had stable ids; bases/days/placements did not.
+const seedBaseId = (tripId: string, colorToken: string) => `${tripId}:base:${colorToken}`;
+const seedDayId = (tripId: string, date: string) => `${tripId}:day:${date}`;
+const seedPlacementId = (tripId: string, date: string, activityId: string) =>
+	`${tripId}:pl:${date}:${activityId}`;
 
-	const now = Date.now();
+function buildSeedGraph(now: number) {
 	const tripId = SEED_TRIP.id;
-
 	const trip: Trip = { ...SEED_TRIP, createdAt: now, updatedAt: now };
 
-	const baseIdByToken: Record<string, string> = {};
-	const bases: Base[] = SEED_BASES.map((b, i) => {
-		const id = uid();
-		baseIdByToken[b.colorToken] = id;
-		return { id, tripId, name: b.name, colorToken: b.colorToken, sortOrder: i, updatedAt: now };
-	});
+	const bases: Base[] = SEED_BASES.map((b, i) => ({
+		id: seedBaseId(tripId, b.colorToken),
+		tripId,
+		name: b.name,
+		colorToken: b.colorToken,
+		sortOrder: i,
+		updatedAt: now
+	}));
 
 	const activities: Activity[] = SEED_ACTIVITIES.map((a) => ({ ...a, tripId, updatedAt: now }));
 
 	const isoDates = datesInRange(trip.startDate, trip.endDate);
 	const days: Day[] = isoDates.map((date, i) => ({
-		id: uid(),
+		id: seedDayId(tripId, date),
 		tripId,
 		date,
-		baseId: baseIdByToken[SEED_DAY_BASES[i]] ?? bases[0].id,
+		baseId: seedBaseId(tripId, SEED_DAY_BASES[i] ?? SEED_BASES[0].colorToken),
 		sortOrder: i,
 		updatedAt: now
 	}));
@@ -305,10 +310,30 @@ export async function seedIfEmpty(): Promise<string> {
 	for (const [dayIdxStr, ids] of Object.entries(SEED_PLACEMENTS)) {
 		const day = days[Number(dayIdxStr)];
 		ids.forEach((activityId, sortOrder) => {
-			placements.push({ id: uid(), tripId, dayId: day.id, activityId, sortOrder, updatedAt: now });
+			placements.push({
+				id: seedPlacementId(tripId, day.date, activityId),
+				tripId,
+				dayId: day.id,
+				activityId,
+				sortOrder,
+				updatedAt: now
+			});
 		});
 	}
 
+	return { trip, bases, activities, days, placements };
+}
+
+// Seed the Mauritius trip on first run; if it already exists, repair legacy duplicates.
+export async function seedIfEmpty(): Promise<string> {
+	const existing = await db.trips.get(SEED_TRIP.id);
+	if (existing) {
+		await repairSeedTrip();
+		return SEED_TRIP.id;
+	}
+
+	const now = Date.now();
+	const { trip, bases, activities, days, placements } = buildSeedGraph(now);
 	await db.transaction('rw', db.trips, db.bases, db.activities, db.days, db.placements, async () => {
 		await db.trips.put(trip);
 		await db.bases.bulkPut(bases);
@@ -316,6 +341,49 @@ export async function seedIfEmpty(): Promise<string> {
 		await db.days.bulkPut(days);
 		await db.placements.bulkPut(placements);
 	});
+	return SEED_TRIP.id;
+}
 
-	return tripId;
+// One-time self-heal for trips seeded before deterministic ids: tombstone the random-id
+// bases/days/placements and lay down the single canonical deterministic set. The tombstones
+// propagate through sync, so every device converges on the clean set without manual resets.
+async function repairSeedTrip(): Promise<void> {
+	const tripId = SEED_TRIP.id;
+	const [curBases, curDays, curPlacements] = await Promise.all([
+		db.bases.where('tripId').equals(tripId).toArray(),
+		db.days.where('tripId').equals(tripId).toArray(),
+		db.placements.where('tripId').equals(tripId).toArray()
+	]);
+
+	const canonicalDayIds = new Set(
+		datesInRange(SEED_TRIP.startDate, SEED_TRIP.endDate).map((d) => seedDayId(tripId, d))
+	);
+	const liveDays = curDays.filter((d) => !d.deletedAt);
+	const hasLegacy = liveDays.some((d) => !canonicalDayIds.has(d.id));
+	const hasDupeDates = new Set(liveDays.map((d) => d.date)).size !== liveDays.length;
+	if (!hasLegacy && !hasDupeDates) return; // already clean
+
+	const now = Date.now();
+	const { bases, days, placements } = buildSeedGraph(now);
+	const keepBases = new Set(bases.map((b) => b.id));
+	const keepDays = new Set(days.map((d) => d.id));
+	const keepPlacements = new Set(placements.map((p) => p.id));
+
+	const tomb = <T extends { id: string; deletedAt?: number }>(rows: T[], keep: Set<string>) =>
+		rows
+			.filter((r) => !r.deletedAt && !keep.has(r.id))
+			.map((r) => ({ ...r, updatedAt: now, deletedAt: now }));
+
+	await db.transaction('rw', db.bases, db.days, db.placements, async () => {
+		const tb = tomb(curBases, keepBases);
+		const td = tomb(curDays, keepDays);
+		const tp = tomb(curPlacements, keepPlacements);
+		if (tb.length) await db.bases.bulkPut(tb);
+		if (td.length) await db.days.bulkPut(td);
+		if (tp.length) await db.placements.bulkPut(tp);
+		// Lay down the canonical set (creates missing, refreshes matching).
+		await db.bases.bulkPut(bases);
+		await db.days.bulkPut(days);
+		await db.placements.bulkPut(placements);
+	});
 }

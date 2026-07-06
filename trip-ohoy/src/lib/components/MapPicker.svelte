@@ -8,8 +8,9 @@
 	let {
 		lat = $bindable(0),
 		lng = $bindable(0),
-		colorVar = 'var(--action)'
-	}: { lat: number; lng: number; colorVar?: string } = $props();
+		colorVar = 'var(--action)',
+		destination = ''
+	}: { lat: number; lng: number; colorVar?: string; destination?: string } = $props();
 
 	let el: HTMLDivElement;
 	let map: L.Map | undefined;
@@ -37,6 +38,30 @@
 		});
 	}
 
+	// Geocode the trip destination (OpenStreetMap Nominatim) and frame its bounding box, so
+	// an unpinned map opens zoomed into the general area instead of the whole globe.
+	async function frameDestination(query: string) {
+		try {
+			const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`;
+			const res = await fetch(url, { headers: { Accept: 'application/json' } });
+			if (!res.ok) return;
+			const results = (await res.json()) as Array<{ boundingbox?: [string, string, string, string] }>;
+			const bb = results[0]?.boundingbox;
+			// Bail if the user already pinned or the map went away while we were fetching.
+			if (!bb || !map || lat !== 0 || lng !== 0) return;
+			const [south, north, west, east] = bb.map(Number);
+			map.fitBounds(
+				[
+					[south, west],
+					[north, east]
+				],
+				{ padding: [16, 16] }
+			);
+		} catch {
+			// geocoding is best-effort — fall back to the default world view
+		}
+	}
+
 	onMount(() => {
 		const pinned = lat !== 0 || lng !== 0;
 		map = L.map(el, {
@@ -51,6 +76,8 @@
 		if (pinned) {
 			marker = L.marker([lat, lng], { icon: makeIcon(), draggable: true }).addTo(map);
 			attachDrag();
+		} else if (destination.trim()) {
+			frameDestination(destination.trim());
 		}
 
 		map.on('click', (e) => {
