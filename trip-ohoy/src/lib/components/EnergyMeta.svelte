@@ -55,6 +55,6 @@
 		height: 30px;
 	}
 	.bar-long {
-		height: 44px;
+		height: 100px;
 	}
 </style>
