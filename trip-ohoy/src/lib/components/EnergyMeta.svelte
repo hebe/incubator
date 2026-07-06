@@ -52,7 +52,7 @@
 		height: 9px;
 	}
 	.bar-medium {
-		height: 30px;
+		height: 50px;
 	}
 	.bar-long {
 		height: 100px;
