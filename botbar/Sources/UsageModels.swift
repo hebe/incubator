@@ -14,7 +14,7 @@ import Foundation
 struct UsageWindow: Codable, Equatable {
     /// 0–100. May arrive as `used_percentage` or `utilization`.
     var usedPercentage: Double
-    /// Unix epoch seconds when this window resets. Optional — not every window resets.
+    /// When this window resets. Optional — not every window resets.
     var resetsAt: Date?
 
     enum CodingKeys: String, CodingKey {
@@ -38,7 +38,12 @@ struct UsageWindow: Codable, Equatable {
         } else {
             usedPercentage = 0
         }
-        if let epoch = try c.decodeIfPresent(Double.self, forKey: .resetsAt) {
+        // `resets_at` arrives as an ISO-8601 timestamp string
+        // (e.g. "2026-07-08T01:59:59.738091+00:00"). Older/status-line feeds
+        // used epoch seconds, so accept both.
+        if let iso = try? c.decodeIfPresent(String.self, forKey: .resetsAt) {
+            resetsAt = Self.parseISO8601(iso)
+        } else if let epoch = try? c.decodeIfPresent(Double.self, forKey: .resetsAt) {
             resetsAt = Date(timeIntervalSince1970: epoch)
         } else {
             resetsAt = nil
@@ -51,6 +56,16 @@ struct UsageWindow: Codable, Equatable {
         if let r = resetsAt {
             try c.encode(r.timeIntervalSince1970, forKey: .resetsAt)
         }
+    }
+
+    /// Parses an ISO-8601 timestamp, tolerating fractional seconds either way.
+    static func parseISO8601(_ s: String) -> Date? {
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = withFraction.date(from: s) { return d }
+        let plain = ISO8601DateFormatter()
+        plain.formatOptions = [.withInternetDateTime]
+        return plain.date(from: s)
     }
 
     var fraction: Double { max(0, min(1, usedPercentage / 100.0)) }
@@ -110,6 +125,7 @@ struct UsageResponse: Decodable {
         var seven_day_opus: UsageWindow?
         var seven_day_sonnet: UsageWindow?
         var overage: UsageWindow?
+        var extra_usage: UsageWindow?
     }
 
     private struct Root: Decodable {
@@ -119,6 +135,8 @@ struct UsageResponse: Decodable {
         var seven_day_opus: UsageWindow?
         var seven_day_sonnet: UsageWindow?
         var overage: UsageWindow?
+        // The endpoint reports overage/credits under `extra_usage`.
+        var extra_usage: UsageWindow?
     }
 
     init(from decoder: Decoder) throws {
@@ -129,34 +147,48 @@ struct UsageResponse: Decodable {
         s.sevenDay = root.seven_day ?? w?.seven_day
         s.sevenDayOpus = root.seven_day_opus ?? w?.seven_day_opus
         s.sevenDaySonnet = root.seven_day_sonnet ?? w?.seven_day_sonnet
-        s.overage = root.overage ?? w?.overage
+        s.overage = root.overage ?? root.extra_usage ?? w?.overage ?? w?.extra_usage
         snapshot = s
     }
 }
 
 /// Best-effort decode of /api/oauth/profile for subscription context.
+///
+/// The real payload nests subscription info under `organization`
+/// (`organization_type` is e.g. "claude_pro" / "claude_max"), with a boolean
+/// fallback under `account` (`has_claude_pro` / `has_claude_max`). There is no
+/// renewal/period-end date in this response, so `subscriptionRenewsAt` stays nil
+/// rather than being guessed.
 struct ProfileResponse: Decodable {
     var subscriptionType: String?
     var subscriptionRenewsAt: Date?
 
+    private struct Organization: Decodable {
+        var organization_type: String?
+        var subscription_status: String?
+    }
+    private struct Account: Decodable {
+        var has_claude_max: Bool?
+        var has_claude_pro: Bool?
+    }
     private enum RootKeys: String, CodingKey {
-        case account, organization, subscription
-        case subscription_type, subscriptionType
-        case subscription_renews_at, subscriptionRenewsAt
-        case current_period_end, subscription_created_at
+        case account, organization
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: RootKeys.self)
-        func string(_ key: RootKeys) -> String? {
-            (try? c.decodeIfPresent(String.self, forKey: key)).flatMap { $0 }
+        let org = (try? c.decodeIfPresent(Organization.self, forKey: .organization)) ?? nil
+        let account = (try? c.decodeIfPresent(Account.self, forKey: .account)) ?? nil
+
+        // Prefer the explicit org type ("claude_pro" → "pro"), else derive from the
+        // account booleans.
+        if let raw = org?.organization_type {
+            subscriptionType = raw.replacingOccurrences(of: "claude_", with: "")
+        } else if account?.has_claude_max == true {
+            subscriptionType = "max"
+        } else if account?.has_claude_pro == true {
+            subscriptionType = "pro"
         }
-        func epoch(_ key: RootKeys) -> Double? {
-            (try? c.decodeIfPresent(Double.self, forKey: key)).flatMap { $0 }
-        }
-        subscriptionType = string(.subscription_type) ?? string(.subscriptionType)
-        if let e = epoch(.subscription_renews_at) ?? epoch(.current_period_end) {
-            subscriptionRenewsAt = Date(timeIntervalSince1970: e)
-        }
+        subscriptionRenewsAt = nil
     }
 }
