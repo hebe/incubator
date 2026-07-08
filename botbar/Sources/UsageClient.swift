@@ -19,21 +19,22 @@ struct UsageClient {
 
     /// Fetches usage and (best-effort) subscription profile. Keeps the raw usage
     /// JSON so the debug panel can show exactly what the server sent.
-    func fetch() async throws -> (snapshot: UsageSnapshot, rawJSON: String) {
+    func fetch() async throws -> (snapshot: UsageSnapshot, usageJSON: String, profileJSON: String) {
         let token = try await AuthManager.shared.validAccessToken()
 
         let (usageData, rawUsage) = try await get(Self.usageURL, token: token)
         var snapshot = try JSONDecoder().decode(UsageResponse.self, from: usageData).snapshot
 
         // Profile is optional — failure here must not break usage display.
-        if let (profileData, _) = try? await get(Self.profileURL, token: token),
+        var rawProfile = ""
+        if let (profileData, profileRaw) = try? await get(Self.profileURL, token: token),
            let profile = try? JSONDecoder().decode(ProfileResponse.self, from: profileData) {
+            rawProfile = profileRaw
             snapshot.subscriptionType = profile.subscriptionType
-            snapshot.subscriptionRenewsAt = profile.subscriptionRenewsAt
         }
 
         snapshot.fetchedAt = Date()
-        return (snapshot, rawUsage)
+        return (snapshot, rawUsage, rawProfile)
     }
 
     private func get(_ url: URL, token: String) async throws -> (Data, String) {
