@@ -11,6 +11,7 @@ final class AppState: ObservableObject {
     @Published var isRefreshing = false
     @Published var isLoggedIn = false
     @Published var rawJSON: String = ""
+    @Published var profileJSON: String = ""
 
     /// Poll interval in seconds. Usage windows move slowly, so a few minutes is plenty.
     @AppStorage("refreshIntervalSeconds") var refreshInterval: Double = 180
@@ -42,7 +43,8 @@ final class AppState: ObservableObject {
         do {
             let result = try await client.fetch()
             snapshot = result.snapshot
-            rawJSON = prettyPrint(result.rawJSON)
+            rawJSON = prettyPrint(result.usageJSON)
+            profileJSON = prettyPrint(result.profileJSON)
             lastError = nil
         } catch {
             lastError = error.localizedDescription
@@ -60,6 +62,7 @@ final class AppState: ObservableObject {
             await AuthManager.shared.signOut()
             snapshot = nil
             rawJSON = ""
+            profileJSON = ""
             isLoggedIn = false
         }
     }

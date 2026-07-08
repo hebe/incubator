@@ -79,9 +79,9 @@ struct UsageSnapshot: Equatable {
     var sevenDaySonnet: UsageWindow?
     var overage: UsageWindow?
 
-    /// Subscription context (from /api/oauth/profile), best-effort.
+    /// Subscription plan (from /api/oauth/profile), best-effort. The endpoint
+    /// exposes no reliable period-end/renewal date, so we show plan only.
     var subscriptionType: String?
-    var subscriptionRenewsAt: Date?
 
     /// When this snapshot was fetched.
     var fetchedAt: Date = Date()
@@ -152,20 +152,21 @@ struct UsageResponse: Decodable {
     }
 }
 
-/// Best-effort decode of /api/oauth/profile for subscription context.
+/// Best-effort decode of /api/oauth/profile for the subscription plan.
 ///
-/// The real payload nests subscription info under `organization`
-/// (`organization_type` is e.g. "claude_pro" / "claude_max"), with a boolean
-/// fallback under `account` (`has_claude_pro` / `has_claude_max`). There is no
-/// renewal/period-end date in this response, so `subscriptionRenewsAt` stays nil
-/// rather than being guessed.
+/// Subscription info nests under `organization` (`organization_type` is e.g.
+/// "claude_pro" / "claude_max"), with a boolean fallback under `account`
+/// (`has_claude_pro` / `has_claude_max`).
+///
+/// Note: the payload has no reliable period-end/renewal date. It only carries
+/// `subscription_created_at` (the signup date), which isn't the billing anchor
+/// and — with plans switched on and off over time — can't be used to guess when
+/// the current period ends. So we surface the plan only, no date.
 struct ProfileResponse: Decodable {
     var subscriptionType: String?
-    var subscriptionRenewsAt: Date?
 
     private struct Organization: Decodable {
         var organization_type: String?
-        var subscription_status: String?
     }
     private struct Account: Decodable {
         var has_claude_max: Bool?
@@ -189,6 +190,5 @@ struct ProfileResponse: Decodable {
         } else if account?.has_claude_pro == true {
             subscriptionType = "pro"
         }
-        subscriptionRenewsAt = nil
     }
 }

@@ -124,22 +124,13 @@ struct PanelView: View {
 
     @ViewBuilder
     private func subscriptionRow(_ snap: UsageSnapshot) -> some View {
-        if snap.subscriptionType != nil || snap.subscriptionRenewsAt != nil {
+        if let type = snap.subscriptionType {
             HStack(spacing: 8) {
                 Image(systemName: "creditcard")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 1) {
-                    if let type = snap.subscriptionType {
-                        Text(type.capitalized)
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                    if let renew = snap.subscriptionRenewsAt {
-                        Text("Renews in \(renew.countdownString()) · \(renew.shortLabel())")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                Text(type.capitalized)
+                    .font(.system(size: 12, weight: .medium))
                 Spacer()
             }
             .padding(.top, 2)
@@ -221,13 +212,26 @@ struct PanelView: View {
 
     private var debugSheet: some View {
         ScrollView {
-            Text(state.rawJSON.isEmpty ? "No data yet." : state.rawJSON)
-                .font(.system(size: 10, design: .monospaced))
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
+            VStack(alignment: .leading, spacing: 8) {
+                debugBlock("USAGE", state.rawJSON)
+                debugBlock("PROFILE", state.profileJSON)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
         }
         .frame(height: 200)
         .background(.thickMaterial)
+    }
+
+    private func debugBlock(_ title: String, _ json: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text(json.isEmpty ? "No data yet." : json)
+                .font(.system(size: 10, design: .monospaced))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
