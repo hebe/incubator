@@ -22,19 +22,68 @@
 	const selected = $derived(store.selectedDayId === day.id);
 	const dragOver = $derived(store.dragOverDayId === day.id);
 
+	let colEl: HTMLElement;
+	let bodyEl: HTMLElement;
+	// Insertion position while reordering: an index into `items` minus the moving card.
+	let dropIndex = $state<number | null>(null);
+
+	const movingId = $derived(store.draggingPlacementId);
+	const isReorder = $derived(movingId != null && dragOver);
+	const others = $derived(items.filter((x) => x.placement.id !== movingId));
+	const lineBeforePid = $derived(
+		dropIndex == null || dropIndex >= others.length ? null : others[dropIndex].placement.id
+	);
+
+	// Where the pointer sits relative to the stationary cards (the moving card excluded).
+	function computeIndex(e: DragEvent): number {
+		const wraps = [...bodyEl.querySelectorAll<HTMLElement>('.card-wrap')].filter(
+			(w) => w.dataset.pid !== movingId
+		);
+		for (let i = 0; i < wraps.length; i++) {
+			const r = wraps[i].getBoundingClientRect();
+			if (e.clientY < r.top + r.height / 2) return i;
+		}
+		return wraps.length;
+	}
+
 	function onDragOver(e: DragEvent) {
 		e.preventDefault();
-		if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+		const moving = store.draggingPlacementId != null;
+		if (e.dataTransfer) e.dataTransfer.dropEffect = moving ? 'move' : 'copy';
 		if (store.dragOverDayId !== day.id) store.dragOverDayId = day.id;
+		dropIndex = moving ? computeIndex(e) : null;
 	}
-	function onDragLeave() {
+	function onDragLeave(e: DragEvent) {
+		// Ignore leaves that cross into a child element of this column.
+		if (e.relatedTarget instanceof Node && colEl.contains(e.relatedTarget)) return;
 		if (store.dragOverDayId === day.id) store.dragOverDayId = null;
+		dropIndex = null;
 	}
 	function onDrop(e: DragEvent) {
 		e.preventDefault();
-		const id = e.dataTransfer?.getData('text/plain');
+		const raw = e.dataTransfer?.getData('text/plain') ?? '';
+		const idx = dropIndex;
 		store.dragOverDayId = null;
-		if (id) store.addActivity(day.id, id);
+		dropIndex = null;
+		if (raw.startsWith('placement:')) {
+			store.movePlacement(raw.slice('placement:'.length), day.id, idx ?? undefined);
+		} else if (raw) {
+			store.addActivity(day.id, raw);
+		}
+		store.draggingPlacementId = null;
+	}
+
+	function onCardDragStart(e: DragEvent, placementId: string) {
+		if (!e.dataTransfer) return;
+		e.dataTransfer.setData('text/plain', `placement:${placementId}`);
+		e.dataTransfer.effectAllowed = 'move';
+		store.draggingPlacementId = placementId;
+	}
+	function onCardDragEnd() {
+		// Clears whether the drop landed on a column or was cancelled outside one.
+		store.draggingPlacementId = null;
+		store.dragOverDayId = null;
+		dropIndex = null;
 	}
 </script>
 
@@ -44,6 +93,7 @@
 	class:dragOver
 	role="group"
 	aria-label="Day column"
+	bind:this={colEl}
 	ondragover={onDragOver}
 	ondragleave={onDragLeave}
 	ondrop={onDrop}
@@ -71,17 +121,29 @@
 		</div>
 	</div>
 
-	<div class="body">
+	<div class="body" bind:this={bodyEl}>
 		{#each items as x (x.placement.id)}
-			<ActivityCard
-				activity={x.activity}
-				onopen={() => store.openDetail(x.activity.id)}
-				onremove={(e) => {
-					e.stopPropagation();
-					store.removePlacement(x.placement.id);
-				}}
-			/>
+			{#if lineBeforePid === x.placement.id}<div class="ins"></div>{/if}
+			<div
+				class="card-wrap"
+				class:dragging={x.placement.id === movingId}
+				data-pid={x.placement.id}
+				role="listitem"
+				draggable="true"
+				ondragstart={(e) => onCardDragStart(e, x.placement.id)}
+				ondragend={onCardDragEnd}
+			>
+				<ActivityCard
+					activity={x.activity}
+					onopen={() => store.openDetail(x.activity.id)}
+					onremove={(e) => {
+						e.stopPropagation();
+						store.removePlacement(x.placement.id);
+					}}
+				/>
+			</div>
 		{/each}
+		{#if isReorder && lineBeforePid === null && others.length > 0}<div class="ins"></div>{/if}
 		{#if items.length === 0}
 			<div class="empty">{t.emptyDay}</div>
 		{/if}
@@ -157,6 +219,21 @@
 		padding: 10px;
 		flex: 1;
 		min-height: 96px;
+	}
+	.card-wrap {
+		cursor: grab;
+	}
+	.card-wrap:active {
+		cursor: grabbing;
+	}
+	.card-wrap.dragging {
+		opacity: 0.4;
+	}
+	.ins {
+		height: 0;
+		margin: -3.5px 0;
+		border-top: 2px solid var(--drop-border);
+		border-radius: 2px;
 	}
 	.empty {
 		font-size: 11.5px;

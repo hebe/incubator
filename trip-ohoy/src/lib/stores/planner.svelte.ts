@@ -64,6 +64,8 @@ export class PlannerStore {
 	lengthFilter = $state<LengthFilter>('all');
 	selectedDayId = $state<string | null>(null);
 	dragOverDayId = $state<string | null>(null);
+	// Set while an already-placed card is being dragged (null = dragging a bank card).
+	draggingPlacementId = $state<string | null>(null);
 	pickerDayId = $state<string | null>(null);
 	detailActivityId = $state<string | null>(null);
 	linkDraft = $state<Link>({ label: '', url: '' });
@@ -181,6 +183,32 @@ export class PlannerStore {
 		const p: Placement = { id: uid(), tripId: a.tripId, dayId, activityId, sortOrder, updatedAt: Date.now() };
 		this.placements = [...this.placements, p];
 		await db.placements.put($state.snapshot(p));
+	}
+
+	// Move a placed activity to another day and/or a new position within a day. `toIndex` is
+	// an index into the destination day's placements *excluding* the moving one (as the drag
+	// UI computes it); omit to append. Renumbers the destination day's sortOrder densely; the
+	// source day keeps its (now-gapped) order, which sorts fine.
+	async movePlacement(placementId: string, toDayId: string, toIndex?: number) {
+		const p = this.placements.find((x) => x.id === placementId);
+		if (!p) return;
+		const now = Date.now();
+		const target = this.placementsForDay(toDayId).filter((x) => x.id !== placementId);
+		const idx = toIndex == null ? target.length : Math.max(0, Math.min(toIndex, target.length));
+		target.splice(idx, 0, p);
+
+		const updates: Placement[] = [];
+		target.forEach((row, i) => {
+			const moved = row.id === placementId;
+			const changed = moved ? p.dayId !== toDayId || p.sortOrder !== i : row.sortOrder !== i;
+			if (changed) updates.push({ ...row, dayId: toDayId, sortOrder: i, updatedAt: now });
+		});
+		if (!updates.length) return;
+
+		const byId = new Map(updates.map((u) => [u.id, u]));
+		this.placements = this.placements.map((x) => byId.get(x.id) ?? x);
+		await db.placements.bulkPut(updates.map((u) => $state.snapshot(u)));
+		this.sync();
 	}
 
 	async removePlacement(placementId: string) {
