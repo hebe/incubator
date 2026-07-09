@@ -43,7 +43,7 @@
 					</div>
 					<div class="head-badges"><Badges {activity} size="md" /></div>
 				</div>
-				<button class="edit" title={t.editActivityTitle} onclick={() => { store.closeDetail(); store.openEditActivity(activity.id); }}>✏️</button>
+				<button class="edit" title={t.editActivityTitle} onclick={() => { const id = activity.id; store.closeDetail(); store.openEditActivity(id); }}>✏️</button>
 			<button class="close" onclick={store.closeDetail}>×</button>
 			</div>
 
